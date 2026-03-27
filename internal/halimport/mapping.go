@@ -9,6 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/spinnaker/spinctl/internal/config"
+	"github.com/spinnaker/spinctl/internal/model"
 )
 
 // halConfig represents the top-level Halyard configuration file.
@@ -101,6 +102,14 @@ func mapHalToSpinctl(hal *halConfig, deploymentName string) (*config.SpinctlConf
 
 	cfg := config.NewDefault()
 	cfg.Version = dc.Version
+
+	// Halyard enables all core services by default. Enable them all
+	// in the imported config to match the running state.
+	for _, name := range model.AllServiceNames() {
+		svc := cfg.Services[name]
+		svc.Enabled = true
+		cfg.Services[name] = svc
+	}
 
 	if dc.Providers != nil {
 		cfg.Providers = mapProviders(dc.Providers)
