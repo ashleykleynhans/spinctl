@@ -118,6 +118,18 @@ func (e *EditorPage) sequenceItems() []editorItem {
 	return items
 }
 
+// isBoolNode checks if a yaml.Node is a boolean scalar.
+func isBoolNode(node *yaml.Node) bool {
+	if node == nil || node.Kind != yaml.ScalarNode {
+		return false
+	}
+	if node.Tag == "!!bool" {
+		return true
+	}
+	v := strings.ToLower(node.Value)
+	return v == "true" || v == "false"
+}
+
 // findMapValue returns the scalar value for a given key in a mapping node.
 func findMapValue(node *yaml.Node, key string) string {
 	if node.Kind != yaml.MappingNode {
@@ -296,7 +308,15 @@ func (e *EditorPage) updateBrowsing(msg tea.KeyMsg) (page, tea.Cmd) {
 	case "enter":
 		if e.cursor >= 0 && e.cursor < len(items) {
 			item := items[e.cursor]
-			if item.isScalar {
+			if item.isScalar && isBoolNode(item.node) {
+				// Toggle boolean values directly.
+				if item.node.Value == "true" {
+					item.node.Value = "false"
+				} else {
+					item.node.Value = "true"
+				}
+				return e, func() tea.Msg { return configChangedMsg{} }
+			} else if item.isScalar {
 				e.mode = modeEdit
 				e.editBuffer = item.value
 			} else if item.node != nil && (item.node.Kind == yaml.MappingNode || item.node.Kind == yaml.SequenceNode) {
@@ -382,6 +402,12 @@ func (e *EditorPage) View() string {
 		}
 		if e.mode == modeEdit && i == e.cursor {
 			b.WriteString(fmt.Sprintf("%s%s: %s█\n", cursor, item.key, e.editBuffer))
+		} else if item.isScalar && isBoolNode(item.node) {
+			status := "OFF"
+			if item.node.Value == "true" {
+				status = " ON"
+			}
+			b.WriteString(fmt.Sprintf("%s[%s] %s\n", cursor, status, item.key))
 		} else {
 			b.WriteString(fmt.Sprintf("%s%-20s %s\n", cursor, item.key, item.value))
 		}
