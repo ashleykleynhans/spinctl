@@ -214,6 +214,12 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Still delegate to import page so it can show the result.
 
 	case goBackMsg:
+		// If on wizard, let the wizard handle internal navigation.
+		if a.currentPage == PageWizard && a.activePage != nil {
+			var cmd tea.Cmd
+			_, cmd = a.activePage.Update(msg)
+			return a, cmd
+		}
 		a.goBack()
 		return a, nil
 
