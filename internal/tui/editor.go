@@ -550,7 +550,7 @@ func (e *EditorPage) View() string {
 			cursor = menuCursorStyle.Render("▸ ")
 		}
 		if e.mode == modeEdit && selected {
-			b.WriteString(cursor + keySelectedStyle.Render(item.key+": ") + editCursorStyle.Render(e.editBuffer+"█") + "\n")
+			b.WriteString(cursor + keySelectedStyle.Render(fmt.Sprintf("%-25s", item.key)) + " " + editCursorStyle.Render(e.editBuffer+"█") + "\n")
 		} else if item.isScalar && isBoolNode(item.node) {
 			status := offStyle.Render("[OFF]")
 			if item.node.Value == "true" {
