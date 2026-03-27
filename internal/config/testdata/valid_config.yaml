@@ -1,0 +1,44 @@
+schema_version: 1
+version: "1.35.0"
+apt_repository: "https://us-apt.pkg.dev/projects/spinnaker-community"
+service_overrides:
+  clouddriver: "5.82.1"
+services:
+  gate:
+    enabled: true
+    host: "localhost"
+    port: 8084
+    settings:
+      server:
+        ssl:
+          enabled: false
+  clouddriver:
+    enabled: true
+    host: "localhost"
+    port: 7002
+    settings:
+      aws:
+        enabled: true
+  orca:
+    enabled: true
+    host: "localhost"
+    port: 8083
+    settings: {}
+providers:
+  kubernetes:
+    enabled: true
+    accounts:
+      - name: "prod"
+        context: "prod-context"
+security:
+  authn:
+    enabled: false
+  authz:
+    enabled: false
+features:
+  artifacts: true
+  pipelineTemplates: false
+custom:
+  notifications:
+    slack:
+      enabled: true

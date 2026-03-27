@@ -5,6 +5,28 @@ import (
 	"strings"
 )
 
+// MarshalYAML implements the yaml.Marshaler interface for ServiceName.
+func (s ServiceName) MarshalYAML() (any, error) {
+	if name, ok := serviceNameStrings[s]; ok {
+		return name, nil
+	}
+	return nil, fmt.Errorf("unknown ServiceName: %d", int(s))
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface for ServiceName.
+func (s *ServiceName) UnmarshalYAML(unmarshal func(any) error) error {
+	var str string
+	if err := unmarshal(&str); err != nil {
+		return err
+	}
+	name, err := ServiceNameFromString(str)
+	if err != nil {
+		return err
+	}
+	*s = name
+	return nil
+}
+
 type ServiceName int
 
 const (
