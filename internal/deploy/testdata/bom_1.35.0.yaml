@@ -1,0 +1,26 @@
+version: "1.35.0"
+timestamp: "2025-01-15 00:00:00"
+services:
+  clouddriver:
+    version: "5.82.1"
+  deck:
+    version: "3.16.0"
+  echo:
+    version: "2.40.0"
+  fiat:
+    version: "1.43.0"
+  front50:
+    version: "2.33.0"
+  gate:
+    version: "6.62.0"
+  igor:
+    version: "4.18.0"
+  kayenta:
+    version: "2.40.0"
+  orca:
+    version: "8.47.0"
+  rosco:
+    version: "1.20.0"
+dependencies:
+  redis:
+    version: "6.2.7"
