@@ -27,6 +27,12 @@ func NewSecurityPage(cfg *config.SpinctlConfig) *SecurityPage {
 
 func (s *SecurityPage) Update(msg tea.Msg) (page, tea.Cmd) {
 	if s.editor != nil {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			if msg.String() == "esc" && len(s.editor.nodeStack) == 0 {
+				return s, func() tea.Msg { return goBackMsg{} }
+			}
+		}
 		var cmd tea.Cmd
 		_, cmd = s.editor.Update(msg)
 		return s, cmd

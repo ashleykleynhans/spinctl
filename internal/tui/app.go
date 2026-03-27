@@ -45,6 +45,9 @@ type saveResultMsg struct {
 	err error
 }
 
+// goBackMsg signals the app to navigate back to the previous page.
+type goBackMsg struct{}
+
 // App is the root bubbletea model and page router.
 type App struct {
 	cfg          *config.SpinctlConfig
@@ -104,6 +107,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// Still delegate to import page so it can show the result.
 
+	case goBackMsg:
+		a.goBack()
+		return a, nil
+
 	case saveResultMsg:
 		if msg.err != nil {
 			a.saveMessage = warnStyle.Render(fmt.Sprintf("Save failed: %s", msg.err))
@@ -147,9 +154,17 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return a, a.saveConfig()
 			}
 		case "esc":
-			if a.currentPage != PageHome {
+			// Only handle esc at app level for simple pages.
+			// Pages with internal navigation (services, providers,
+			// security, editor) handle esc themselves.
+			switch a.currentPage {
+			case PageFeatures, PageImport, PageDeploy:
 				a.goBack()
 				return a, nil
+			case PageHome:
+				// Do nothing on home page.
+			default:
+				// Let the page handle esc first.
 			}
 		}
 	}

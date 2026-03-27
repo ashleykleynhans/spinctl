@@ -43,6 +43,8 @@ func (v *VersionPage) Update(msg tea.Msg) (page, tea.Cmd) {
 			switch msg.String() {
 			case "enter":
 				v.editing = true
+			case "esc":
+				return v, func() tea.Msg { return goBackMsg{} }
 			}
 		}
 	}

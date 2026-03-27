@@ -57,6 +57,8 @@ func (s *ServicesPage) Update(msg tea.Msg) (page, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
+		case "esc":
+			return s, func() tea.Msg { return goBackMsg{} }
 		case "up", "k":
 			s.cursor--
 			if s.cursor < 0 {
