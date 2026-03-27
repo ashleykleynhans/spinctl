@@ -21,6 +21,11 @@ import (
 
 var version = "dev"
 
+var (
+	cfgFile  string
+	lockFile string
+)
+
 func main() {
 	if err := rootCmd().Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -36,14 +41,37 @@ func rootCmd() *cobra.Command {
 		RunE:  runTUI,
 	}
 	cmd.Version = version
+	cmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Path to config file (default: ~/.spinctl/config.yaml)")
+	cmd.PersistentFlags().StringVar(&lockFile, "lock", "", "Path to lock file (default: ~/.spinctl/.lock)")
 	cmd.AddCommand(deployCmd())
 	cmd.AddCommand(importCmd())
 	cmd.AddCommand(showCmd())
 	return cmd
 }
 
+func resolveConfigPath() string {
+	if cfgFile != "" {
+		return cfgFile
+	}
+	return config.DefaultConfigPath()
+}
+
+func resolveLockPath() string {
+	if lockFile != "" {
+		return lockFile
+	}
+	return filepath.Join(config.DefaultConfigDir(), ".lock")
+}
+
+func resolveConfigDir() string {
+	if cfgFile != "" {
+		return filepath.Dir(cfgFile)
+	}
+	return config.DefaultConfigDir()
+}
+
 func loadOrCreateConfig() (*config.SpinctlConfig, string) {
-	configPath := config.DefaultConfigPath()
+	configPath := resolveConfigPath()
 	cfg, err := config.LoadFromFile(configPath)
 	if err != nil {
 		cfg = config.NewDefault()
@@ -53,8 +81,7 @@ func loadOrCreateConfig() (*config.SpinctlConfig, string) {
 
 func runTUI(cmd *cobra.Command, args []string) error {
 	cfg, configPath := loadOrCreateConfig()
-	lockPath := config.DefaultConfigDir() + "/.lock"
-	lock, err := config.AcquireLock(lockPath)
+	lock, err := config.AcquireLock(resolveLockPath())
 	if err != nil {
 		return err
 	}
@@ -93,7 +120,8 @@ func deployCmd() *cobra.Command {
 				return fmt.Errorf("config validation failed")
 			}
 
-			cacheDir := filepath.Join(config.DefaultConfigDir(), "cache", "bom")
+			configDir := resolveConfigDir()
+			cacheDir := filepath.Join(configDir, "cache", "bom")
 			fetcher := deploy.NewBOMFetcher(deploy.DefaultBOMURLPattern, cacheDir)
 			bom, err := fetcher.Fetch(cfg.Version)
 			if err != nil {
@@ -118,8 +146,7 @@ func deployCmd() *cobra.Command {
 			}
 
 			fmt.Println("\nDeploying...")
-			spinctlDir := config.DefaultConfigDir()
-			stateFile := filepath.Join(spinctlDir, "deploy-state.json")
+			stateFile := filepath.Join(configDir, "deploy-state.json")
 
 			if state, err := deploy.LoadDeployState(stateFile); err == nil {
 				fmt.Printf("\nPrevious deploy interrupted. Completed: %v\n", state.Completed)
@@ -129,7 +156,7 @@ func deployCmd() *cobra.Command {
 			exec := &deploy.RealExecutor{}
 			runner := deploy.NewDeployRunner(exec,
 				"/opt/spinnaker/config",
-				filepath.Join(spinctlDir, "deploy.log"),
+				filepath.Join(configDir, "deploy.log"),
 				stateFile,
 			)
 
@@ -168,7 +195,7 @@ func importCmd() *cobra.Command {
 				halDir = detected
 			}
 
-			outputPath := config.DefaultConfigPath()
+			outputPath := resolveConfigPath()
 			result, err := halimport.Import(halimport.ImportOptions{
 				HalDir:         halDir,
 				DeploymentName: "default",
@@ -200,7 +227,7 @@ func showCmd() *cobra.Command {
 		Use:   "show",
 		Short: "Show current configuration",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			configPath := config.DefaultConfigPath()
+			configPath := resolveConfigPath()
 			_, err := config.LoadFromFile(configPath)
 			if err != nil {
 				return fmt.Errorf("no config found at %s: %w", configPath, err)
