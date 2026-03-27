@@ -575,6 +575,65 @@ func TestLoadOrCreateConfigExisting(t *testing.T) {
 	}
 }
 
+func TestResolveConfigPathCustom(t *testing.T) {
+	oldVal := cfgFile
+	defer func() { cfgFile = oldVal }()
+
+	cfgFile = "/custom/path/config.yaml"
+	result := resolveConfigPath()
+	if result != "/custom/path/config.yaml" {
+		t.Errorf("resolveConfigPath() = %q, want '/custom/path/config.yaml'", result)
+	}
+}
+
+func TestResolveLockPathCustom(t *testing.T) {
+	oldVal := lockFile
+	defer func() { lockFile = oldVal }()
+
+	lockFile = "/custom/path/.lock"
+	result := resolveLockPath()
+	if result != "/custom/path/.lock" {
+		t.Errorf("resolveLockPath() = %q, want '/custom/path/.lock'", result)
+	}
+}
+
+func TestResolveConfigDirCustom(t *testing.T) {
+	oldVal := cfgFile
+	defer func() { cfgFile = oldVal }()
+
+	cfgFile = "/custom/path/config.yaml"
+	result := resolveConfigDir()
+	if result != "/custom/path" {
+		t.Errorf("resolveConfigDir() = %q, want '/custom/path'", result)
+	}
+}
+
+func TestResolveConfigPathDefault(t *testing.T) {
+	oldVal := cfgFile
+	defer func() { cfgFile = oldVal }()
+
+	cfgFile = ""
+	result := resolveConfigPath()
+	expected := config.DefaultConfigPath()
+	if result != expected {
+		t.Errorf("resolveConfigPath() = %q, want %q", result, expected)
+	}
+}
+
+func TestResolveLockPathDefault(t *testing.T) {
+	oldVal := lockFile
+	defer func() { lockFile = oldVal }()
+
+	lockFile = ""
+	result := resolveLockPath()
+	if result == "" {
+		t.Error("resolveLockPath() should not be empty")
+	}
+	if !strings.HasSuffix(result, ".lock") {
+		t.Errorf("resolveLockPath() = %q, should end with '.lock'", result)
+	}
+}
+
 func findSubcommand(cmd *cobra.Command, name string) *cobra.Command {
 	for _, c := range cmd.Commands() {
 		if c.Name() == name {

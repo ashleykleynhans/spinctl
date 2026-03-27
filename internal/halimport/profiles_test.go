@@ -163,6 +163,84 @@ func TestImportProfilesMergesWithExisting(t *testing.T) {
 	}
 }
 
+func TestMergeIntoSettingsEmpty(t *testing.T) {
+	svc := config.ServiceConfig{
+		Enabled: true,
+		Host:    "localhost",
+		Port:    8080,
+	}
+
+	settings := map[string]any{
+		"server": map[string]any{"port": 9090},
+	}
+	mergeIntoSettings(&svc, settings)
+
+	if svc.Settings.Kind == 0 {
+		t.Error("Settings should not be empty after merge")
+	}
+}
+
+func TestMergeIntoSettingsExisting(t *testing.T) {
+	svc := config.ServiceConfig{
+		Enabled: true,
+		Host:    "localhost",
+		Port:    8080,
+	}
+
+	// First merge creates settings.
+	mergeIntoSettings(&svc, map[string]any{"server": map[string]any{"port": 9090}})
+
+	// Second merge should not overwrite existing key.
+	mergeIntoSettings(&svc, map[string]any{
+		"server": map[string]any{"port": 7070}, // should not overwrite
+		"cors":   map[string]any{"enabled": true},
+	})
+
+	// Should have both "server" and "cors" keys.
+	keyCount := len(svc.Settings.Content) / 2
+	if keyCount != 2 {
+		t.Errorf("expected 2 keys in settings, got %d", keyCount)
+	}
+}
+
+func TestImportServiceSettingsInvalidYAML(t *testing.T) {
+	cfg := config.NewDefault()
+	dir := t.TempDir()
+	// Write invalid YAML.
+	os.WriteFile(filepath.Join(dir, "gate.yml"), []byte("{{invalid yaml"), 0644)
+
+	// Should not panic, just skip invalid file.
+	importServiceSettings(cfg, dir)
+	gate := cfg.Services[model.Gate]
+	if gate.Host != "localhost" {
+		t.Error("gate host should remain default after invalid YAML")
+	}
+}
+
+func TestImportProfilesSkipsDirectories(t *testing.T) {
+	cfg := config.NewDefault()
+	dir := t.TempDir()
+
+	// Create a subdirectory that looks like a service.
+	os.MkdirAll(filepath.Join(dir, "gate.yml"), 0755)
+
+	// Should not panic.
+	importProfiles(cfg, dir)
+}
+
+func TestImportProfilesInvalidYAML(t *testing.T) {
+	cfg := config.NewDefault()
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "gate-local.yml"), []byte("{{not valid yaml"), 0644)
+
+	// Should not panic, just skip invalid file.
+	importProfiles(cfg, dir)
+	gate := cfg.Services[model.Gate]
+	if gate.Settings.Kind != 0 {
+		t.Error("gate Settings should be empty after invalid YAML")
+	}
+}
+
 func TestFullImportWithProfilesAndServiceSettings(t *testing.T) {
 	// Create a fake .hal directory with all components.
 	halDir := t.TempDir()

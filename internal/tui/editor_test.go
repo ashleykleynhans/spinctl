@@ -298,3 +298,363 @@ func TestEditorPageNestedSequenceInSequence(t *testing.T) {
 		t.Error("should show item count for nested sequence")
 	}
 }
+
+func TestEditorAddKeyValueToMap(t *testing.T) {
+	node := makeTestNode("a: 1")
+	ep := NewEditorPage(&node, "config")
+
+	// Press + to start adding.
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'+'}})
+	if ep.mode != modeAddKey {
+		t.Fatalf("mode = %v, want modeAddKey", ep.mode)
+	}
+
+	// Type key name.
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}})
+	ep.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if ep.mode != modeAddValue {
+		t.Fatalf("mode = %v, want modeAddValue", ep.mode)
+	}
+
+	// Type value.
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'2'}})
+	result, cmd := ep.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if result.(*EditorPage).mode != modeBrowse {
+		t.Error("should return to browse mode")
+	}
+	if cmd == nil {
+		t.Error("should return configChangedMsg cmd")
+	}
+
+	items := ep.items()
+	found := false
+	for _, item := range items {
+		if item.key == "b" && item.value == "2" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("new key/value pair 'b: 2' not found")
+	}
+}
+
+func TestEditorAddKeyCancel(t *testing.T) {
+	node := makeTestNode("a: 1")
+	ep := NewEditorPage(&node, "config")
+
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'+'}})
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	ep.Update(tea.KeyMsg{Type: tea.KeyEscape})
+
+	if ep.mode != modeBrowse {
+		t.Error("should return to browse mode after esc")
+	}
+	items := ep.items()
+	if len(items) != 1 {
+		t.Errorf("items count = %d, want 1 (nothing added)", len(items))
+	}
+}
+
+func TestEditorAddValueCancel(t *testing.T) {
+	node := makeTestNode("a: 1")
+	ep := NewEditorPage(&node, "config")
+
+	// Start add, enter key, then cancel during value.
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'+'}})
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}})
+	ep.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if ep.mode != modeAddValue {
+		t.Fatalf("mode = %v, want modeAddValue", ep.mode)
+	}
+
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'v'}})
+	ep.Update(tea.KeyMsg{Type: tea.KeyEscape})
+
+	if ep.mode != modeBrowse {
+		t.Error("should return to browse mode after esc")
+	}
+	items := ep.items()
+	if len(items) != 1 {
+		t.Errorf("items count = %d, want 1 (nothing added)", len(items))
+	}
+}
+
+func TestEditorAddListItem(t *testing.T) {
+	node := makeTestNode("- alpha\n- beta")
+	ep := NewEditorPage(&node, "config")
+
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'+'}})
+	if ep.mode != modeAddListItem {
+		t.Fatalf("mode = %v, want modeAddListItem", ep.mode)
+	}
+
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'g', 'a', 'm', 'm', 'a'}})
+	_, cmd := ep.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	if ep.mode != modeBrowse {
+		t.Error("should return to browse mode")
+	}
+	if cmd == nil {
+		t.Error("should return configChangedMsg cmd")
+	}
+
+	items := ep.items()
+	if len(items) != 3 {
+		t.Errorf("items count = %d, want 3", len(items))
+	}
+	if items[2].value != "gamma" {
+		t.Errorf("new item value = %q, want 'gamma'", items[2].value)
+	}
+}
+
+func TestEditorAddListItemCancel(t *testing.T) {
+	node := makeTestNode("- alpha\n- beta")
+	ep := NewEditorPage(&node, "config")
+
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'+'}})
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	ep.Update(tea.KeyMsg{Type: tea.KeyEscape})
+
+	if ep.mode != modeBrowse {
+		t.Error("should return to browse mode")
+	}
+	items := ep.items()
+	if len(items) != 2 {
+		t.Errorf("items count = %d, want 2 (nothing added)", len(items))
+	}
+}
+
+func TestEditorDeleteItem(t *testing.T) {
+	node := makeTestNode("a: 1\nb: 2")
+	ep := NewEditorPage(&node, "config")
+
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	if ep.mode != modeConfirmDelete {
+		t.Fatalf("mode = %v, want modeConfirmDelete", ep.mode)
+	}
+
+	_, cmd := ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	if ep.mode != modeBrowse {
+		t.Error("should return to browse mode")
+	}
+	if cmd == nil {
+		t.Error("should return configChangedMsg cmd")
+	}
+
+	items := ep.items()
+	if len(items) != 1 {
+		t.Errorf("items count = %d, want 1", len(items))
+	}
+	if items[0].key != "b" {
+		t.Errorf("remaining key = %q, want 'b'", items[0].key)
+	}
+}
+
+func TestEditorDeleteCancel(t *testing.T) {
+	node := makeTestNode("a: 1\nb: 2")
+	ep := NewEditorPage(&node, "config")
+
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+
+	if ep.mode != modeBrowse {
+		t.Error("should return to browse mode")
+	}
+	items := ep.items()
+	if len(items) != 2 {
+		t.Errorf("items count = %d, want 2 (nothing deleted)", len(items))
+	}
+}
+
+func TestEditorDeleteFromSequence(t *testing.T) {
+	node := makeTestNode("- alpha\n- beta\n- gamma")
+	ep := NewEditorPage(&node, "config")
+
+	// Delete the first item.
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+
+	items := ep.items()
+	if len(items) != 2 {
+		t.Errorf("items count = %d, want 2", len(items))
+	}
+	if items[0].value != "beta" {
+		t.Errorf("first item value = %q, want 'beta'", items[0].value)
+	}
+}
+
+func TestEditorBoolToggle(t *testing.T) {
+	node := makeTestNode("enabled: true")
+	ep := NewEditorPage(&node, "config")
+
+	_, cmd := ep.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if cmd == nil {
+		t.Error("should return configChangedMsg cmd")
+	}
+
+	items := ep.items()
+	if items[0].value != "false" {
+		t.Errorf("value = %q, want 'false' after toggle", items[0].value)
+	}
+
+	// Toggle back.
+	ep.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	items = ep.items()
+	if items[0].value != "true" {
+		t.Errorf("value = %q, want 'true' after second toggle", items[0].value)
+	}
+}
+
+func TestEditorViewAddKeyMode(t *testing.T) {
+	node := makeTestNode("a: 1")
+	ep := NewEditorPage(&node, "config")
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'+'}})
+
+	view := ep.View()
+	if !strings.Contains(view, "New key:") {
+		t.Error("add key mode should show 'New key:' prompt")
+	}
+	if !strings.Contains(view, "esc: cancel") {
+		t.Error("add key mode should show cancel hint")
+	}
+}
+
+func TestEditorViewAddValueMode(t *testing.T) {
+	node := makeTestNode("a: 1")
+	ep := NewEditorPage(&node, "config")
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'+'}})
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	ep.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	view := ep.View()
+	if !strings.Contains(view, "Key: k") {
+		t.Error("add value mode should show the key name")
+	}
+	if !strings.Contains(view, "Value:") {
+		t.Error("add value mode should show 'Value:' prompt")
+	}
+}
+
+func TestEditorViewAddListItemMode(t *testing.T) {
+	node := makeTestNode("- alpha")
+	ep := NewEditorPage(&node, "config")
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'+'}})
+
+	view := ep.View()
+	if !strings.Contains(view, "New item:") {
+		t.Error("add list item mode should show 'New item:' prompt")
+	}
+}
+
+func TestEditorViewConfirmDeleteMode(t *testing.T) {
+	node := makeTestNode("a: 1\nb: 2")
+	ep := NewEditorPage(&node, "config")
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+
+	view := ep.View()
+	if !strings.Contains(view, "Delete") {
+		t.Error("confirm delete mode should show 'Delete' prompt")
+	}
+	if !strings.Contains(view, "(y/n)") {
+		t.Error("confirm delete mode should show y/n options")
+	}
+}
+
+func TestEditorViewBoolDisplay(t *testing.T) {
+	node := makeTestNode("enabled: true\ndisabled: false")
+	ep := NewEditorPage(&node, "config")
+	view := ep.View()
+
+	if !strings.Contains(view, "[ ON]") {
+		t.Error("true boolean should show [ ON]")
+	}
+	if !strings.Contains(view, "[OFF]") {
+		t.Error("false boolean should show [OFF]")
+	}
+}
+
+func TestEditorAddKeyBackspace(t *testing.T) {
+	node := makeTestNode("a: 1")
+	ep := NewEditorPage(&node, "config")
+
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'+'}})
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a', 'b'}})
+	ep.Update(tea.KeyMsg{Type: tea.KeyBackspace})
+	if ep.editBuffer != "a" {
+		t.Errorf("editBuffer = %q, want 'a'", ep.editBuffer)
+	}
+}
+
+func TestEditorAddValueBackspace(t *testing.T) {
+	node := makeTestNode("a: 1")
+	ep := NewEditorPage(&node, "config")
+
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'+'}})
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	ep.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'v', 'x'}})
+	ep.Update(tea.KeyMsg{Type: tea.KeyBackspace})
+	if ep.editBuffer != "v" {
+		t.Errorf("editBuffer = %q, want 'v'", ep.editBuffer)
+	}
+}
+
+func TestEditorAddListItemBackspace(t *testing.T) {
+	node := makeTestNode("- alpha")
+	ep := NewEditorPage(&node, "config")
+
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'+'}})
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x', 'y'}})
+	ep.Update(tea.KeyMsg{Type: tea.KeyBackspace})
+	if ep.editBuffer != "x" {
+		t.Errorf("editBuffer = %q, want 'x'", ep.editBuffer)
+	}
+}
+
+func TestEditorAddKeyEmptyEnterDoesNothing(t *testing.T) {
+	node := makeTestNode("a: 1")
+	ep := NewEditorPage(&node, "config")
+
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'+'}})
+	// Enter with empty key should stay in modeAddKey.
+	ep.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if ep.mode != modeAddKey {
+		t.Errorf("mode = %v, want modeAddKey (empty key should not advance)", ep.mode)
+	}
+}
+
+func TestEditorDeleteOnEmptyList(t *testing.T) {
+	node := makeTestNode("{}")
+	ep := NewEditorPage(&node, "config")
+
+	// d on empty list should not enter confirm delete.
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	if ep.mode == modeConfirmDelete {
+		t.Error("should not enter confirmDelete on empty map")
+	}
+}
+
+func TestEditorConfirmDeleteEsc(t *testing.T) {
+	node := makeTestNode("a: 1\nb: 2")
+	ep := NewEditorPage(&node, "config")
+
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	ep.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	if ep.mode != modeBrowse {
+		t.Error("esc should return to browse mode")
+	}
+	items := ep.items()
+	if len(items) != 2 {
+		t.Errorf("items count = %d, want 2", len(items))
+	}
+}
+
+func TestEditorEmptyWithAddHint(t *testing.T) {
+	node := makeTestNode("{}")
+	ep := NewEditorPage(&node, "config")
+	view := ep.View()
+
+	if !strings.Contains(view, "+: add") {
+		t.Error("empty map should show '+: add' hint")
+	}
+}

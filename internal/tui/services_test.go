@@ -160,3 +160,35 @@ func TestServicesPageViewShowsHints(t *testing.T) {
 		t.Error("services page should show back hint")
 	}
 }
+
+func TestServicesPageEditorEscReturnsToList(t *testing.T) {
+	cfg := config.NewDefault()
+	sp := NewServicesPage(cfg)
+
+	// Enter to open editor.
+	sp.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if sp.editor == nil {
+		t.Fatal("should have editor after enter")
+	}
+
+	// Esc at editor root returns to service list.
+	sp.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	if sp.editor != nil {
+		t.Error("esc at editor root should close editor and return to list")
+	}
+}
+
+func TestServicesPageEscSendsGoBack(t *testing.T) {
+	cfg := config.NewDefault()
+	sp := NewServicesPage(cfg)
+
+	// Esc on the service list should send goBackMsg.
+	_, cmd := sp.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	if cmd == nil {
+		t.Fatal("esc should return a cmd")
+	}
+	msg := cmd()
+	if _, ok := msg.(goBackMsg); !ok {
+		t.Errorf("expected goBackMsg, got %T", msg)
+	}
+}

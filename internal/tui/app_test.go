@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -269,6 +270,170 @@ func TestAppViewEditorPage(t *testing.T) {
 	view := app.View()
 	if view == "" {
 		t.Error("view should not be empty")
+	}
+}
+
+func TestAppSaveConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := tmpDir + "/config.yaml"
+	cfg := config.NewDefault()
+	cfg.Version = "1.35.0"
+	app := NewApp(cfg, configPath, "test")
+	app.dirty = true
+
+	// Press 's' on home page to trigger save.
+	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	if cmd == nil {
+		t.Fatal("expected save command")
+	}
+
+	// Execute the cmd to get the saveResultMsg.
+	msg := cmd()
+	result, ok := msg.(saveResultMsg)
+	if !ok {
+		t.Fatalf("expected saveResultMsg, got %T", msg)
+	}
+	if result.err != nil {
+		t.Errorf("save error = %v", result.err)
+	}
+}
+
+func TestAppGoBack(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.Version = "1.35.0"
+	app := NewApp(cfg, "", "test")
+
+	// Navigate to services.
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if app.currentPage != PageServices {
+		t.Fatalf("expected PageServices, got %v", app.currentPage)
+	}
+
+	// Send goBackMsg.
+	app.Update(goBackMsg{})
+	if app.currentPage != PageHome {
+		t.Errorf("after goBack, currentPage = %v, want PageHome", app.currentPage)
+	}
+}
+
+func TestAppConfigChangedMsg(t *testing.T) {
+	cfg := config.NewDefault()
+	app := NewApp(cfg, "", "test")
+
+	if app.dirty {
+		t.Error("should not be dirty initially")
+	}
+
+	app.Update(configChangedMsg{})
+	if !app.dirty {
+		t.Error("should be dirty after configChangedMsg")
+	}
+}
+
+func TestAppQuitConfirmDirty(t *testing.T) {
+	cfg := config.NewDefault()
+	app := NewApp(cfg, "", "test")
+	app.dirty = true
+
+	app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	if !app.confirmQuit {
+		t.Error("should show confirmQuit when dirty")
+	}
+}
+
+func TestAppQuitConfirmYes(t *testing.T) {
+	cfg := config.NewDefault()
+	app := NewApp(cfg, "", "test")
+	app.dirty = true
+	app.confirmQuit = true
+
+	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	if cmd == nil {
+		t.Error("expected tea.Quit command")
+	}
+}
+
+func TestAppQuitConfirmNo(t *testing.T) {
+	cfg := config.NewDefault()
+	app := NewApp(cfg, "", "test")
+	app.confirmQuit = true
+
+	app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	if app.confirmQuit {
+		t.Error("confirmQuit should be false after 'n'")
+	}
+}
+
+func TestAppSaveResultSuccess(t *testing.T) {
+	cfg := config.NewDefault()
+	app := NewApp(cfg, "", "test")
+	app.dirty = true
+
+	app.Update(saveResultMsg{err: nil})
+	if app.dirty {
+		t.Error("dirty should be false after successful save")
+	}
+}
+
+func TestAppSaveResultError(t *testing.T) {
+	cfg := config.NewDefault()
+	app := NewApp(cfg, "", "test")
+	app.dirty = true
+
+	app.Update(saveResultMsg{err: fmt.Errorf("write failed")})
+	if !app.dirty {
+		t.Error("dirty should still be true after failed save")
+	}
+	if !strings.Contains(app.saveMessage, "Save failed") {
+		t.Error("saveMessage should contain error info")
+	}
+}
+
+func TestAppNavigateToVersion(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.Version = "1.35.0"
+	app := NewApp(cfg, "", "test")
+
+	hp := app.homePage.(*HomePage)
+	hp.cursor = 4 // Version
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if app.currentPage != PageVersion {
+		t.Errorf("currentPage = %v, want PageVersion", app.currentPage)
+	}
+}
+
+func TestAppNavigateToSecurity(t *testing.T) {
+	cfg := config.NewDefault()
+	app := NewApp(cfg, "", "test")
+
+	hp := app.homePage.(*HomePage)
+	hp.cursor = 2 // Security
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if app.currentPage != PageSecurity {
+		t.Errorf("currentPage = %v, want PageSecurity", app.currentPage)
+	}
+}
+
+func TestAppNavigateToFeatures(t *testing.T) {
+	cfg := config.NewDefault()
+	app := NewApp(cfg, "", "test")
+
+	hp := app.homePage.(*HomePage)
+	hp.cursor = 3 // Features
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if app.currentPage != PageFeatures {
+		t.Errorf("currentPage = %v, want PageFeatures", app.currentPage)
+	}
+}
+
+func TestAppConfirmQuitView(t *testing.T) {
+	cfg := config.NewDefault()
+	app := NewApp(cfg, "", "test")
+	app.confirmQuit = true
+
+	view := app.View()
+	if !strings.Contains(view, "unsaved changes") {
+		t.Error("confirm quit view should mention unsaved changes")
 	}
 }
 
