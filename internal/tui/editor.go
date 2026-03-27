@@ -82,7 +82,16 @@ func (e *EditorPage) mapItems() []editorItem {
 			item.value = valNode.Value
 			item.isScalar = true
 		case yaml.MappingNode:
-			item.value = fmt.Sprintf("{%d keys}", len(valNode.Content)/2)
+			// Show enabled status if the map has an "enabled" key.
+			if enabled := findMapValue(valNode, "enabled"); enabled != "" {
+				status := "OFF"
+				if enabled == "true" {
+					status = " ON"
+				}
+				item.value = fmt.Sprintf("[%s] {%d keys}", status, len(valNode.Content)/2)
+			} else {
+				item.value = fmt.Sprintf("{%d keys}", len(valNode.Content)/2)
+			}
 		case yaml.SequenceNode:
 			item.value = fmt.Sprintf("[%d items]", len(valNode.Content))
 		}
@@ -109,7 +118,15 @@ func (e *EditorPage) sequenceItems() []editorItem {
 			if label := findItemLabel(node); label != "" {
 				item.key = label
 			}
-			item.value = fmt.Sprintf("{%d keys}", len(node.Content)/2)
+			if enabled := findMapValue(node, "enabled"); enabled != "" {
+				status := "OFF"
+				if enabled == "true" {
+					status = " ON"
+				}
+				item.value = fmt.Sprintf("[%s] {%d keys}", status, len(node.Content)/2)
+			} else {
+				item.value = fmt.Sprintf("{%d keys}", len(node.Content)/2)
+			}
 		case yaml.SequenceNode:
 			item.value = fmt.Sprintf("[%d items]", len(node.Content))
 		}
