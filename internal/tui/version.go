@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"fmt"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -54,14 +53,16 @@ func (v *VersionPage) Update(msg tea.Msg) (page, tea.Cmd) {
 
 func (v *VersionPage) View() string {
 	var b strings.Builder
-	b.WriteString("\n  Spinnaker Version\n\n")
+	b.WriteString("\n")
+	b.WriteString(headingStyle.Render("Spinnaker Version"))
+	b.WriteString("\n\n")
 
 	if v.editing {
-		b.WriteString(fmt.Sprintf("  Version: %s█\n", v.buffer))
-		b.WriteString("\n  enter: save  esc: back\n")
+		b.WriteString("  " + keyStyle.Render("Version: ") + editCursorStyle.Render(v.buffer+"█") + "\n")
+		b.WriteString("\n  " + menuDescStyle.Render("enter: save  esc: cancel") + "\n")
 	} else {
-		b.WriteString(fmt.Sprintf("  Version: %s\n", v.cfg.Version))
-		b.WriteString("\n  enter: edit  esc: back\n")
+		b.WriteString("  " + keyStyle.Render("Version: ") + onStyle.Render(v.cfg.Version) + "\n")
+		b.WriteString("\n  " + menuDescStyle.Render("enter: edit  esc: back") + "\n")
 	}
 
 	return b.String()

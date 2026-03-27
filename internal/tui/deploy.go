@@ -95,10 +95,12 @@ func (d *DeployPage) Update(msg tea.Msg) (page, tea.Cmd) {
 // View renders the deploy page.
 func (d *DeployPage) View() string {
 	var b strings.Builder
-	b.WriteString("\n  Deploy\n\n")
+	b.WriteString("\n")
+	b.WriteString(headingStyle.Render("Deploy"))
+	b.WriteString("\n\n")
 
 	if d.plan == nil {
-		b.WriteString("  No deploy plan available.\n")
+		b.WriteString("  " + valueStyle.Render("No deploy plan available.") + "\n")
 		return b.String()
 	}
 

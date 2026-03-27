@@ -76,28 +76,36 @@ func (p *ProvidersPage) View() string {
 	}
 
 	var b strings.Builder
-	b.WriteString("\n  Providers\n\n")
+	b.WriteString("\n")
+	b.WriteString(headingStyle.Render("Providers"))
+	b.WriteString("\n\n")
 
 	if len(p.sortedNames) == 0 {
-		b.WriteString("  No providers configured.\n")
-		b.WriteString("\n  esc: back\n")
+		b.WriteString("  " + valueStyle.Render("No providers configured.") + "\n")
+		b.WriteString("\n  " + menuDescStyle.Render("esc: back") + "\n")
 		return b.String()
 	}
 
 	for i, name := range p.sortedNames {
 		prov := p.cfg.Providers[name]
+		selected := i == p.cursor
 		cursor := "  "
-		if i == p.cursor {
-			cursor = "▸ "
+		if selected {
+			cursor = menuCursorStyle.Render("▸ ")
 		}
-		status := "OFF"
+		status := offStyle.Render("[OFF]")
 		if prov.Enabled {
-			status = " ON"
+			status = onStyle.Render("[ ON]")
+		}
+		label := keyStyle.Render(fmt.Sprintf("%-20s", name))
+		if selected {
+			label = keySelectedStyle.Render(fmt.Sprintf("%-20s", name))
 		}
 		acctCount := len(prov.Accounts)
-		b.WriteString(fmt.Sprintf("%s[%s] %-20s %d account(s)\n", cursor, status, name, acctCount))
+		info := valueStyle.Render(fmt.Sprintf("%d account(s)", acctCount))
+		b.WriteString(fmt.Sprintf("%s%s %s  %s\n", cursor, status, label, info))
 	}
 
-	b.WriteString("\n  enter: configure  esc: back\n")
+	b.WriteString("\n  " + menuDescStyle.Render("enter: configure  esc: back") + "\n")
 	return b.String()
 }

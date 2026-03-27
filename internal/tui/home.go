@@ -100,14 +100,20 @@ func (h *HomePage) View() string {
 	b.WriteString("\n")
 	for i, item := range h.items {
 		if item.separator {
-			b.WriteString("  ───\n")
+			b.WriteString("  " + menuSeparatorStyle.Render("────────────────────────────────────") + "\n")
 			continue
 		}
+		selected := i == h.cursor
 		cursor := "  "
-		if i == h.cursor {
-			cursor = "▸ "
+		if selected {
+			cursor = menuCursorStyle.Render("▸ ")
 		}
-		b.WriteString(fmt.Sprintf("%s%-30s %s\n", cursor, item.label, item.description))
+		label := menuLabelStyle.Render(fmt.Sprintf("%-28s", item.label))
+		if selected {
+			label = menuLabelSelectedStyle.Render(fmt.Sprintf("%-28s", item.label))
+		}
+		desc := menuDescStyle.Render(item.description)
+		b.WriteString(cursor + label + " " + desc + "\n")
 	}
 	return b.String()
 }

@@ -40,10 +40,71 @@ const (
 )
 
 var (
-	titleStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
-	statusStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-	successStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("82"))
-	warnStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
+	// Title bar
+	titleStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("86")).
+			PaddingLeft(1)
+
+	// Divider line
+	dividerStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("238"))
+
+	// Status bar
+	statusStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("245")).
+			Background(lipgloss.Color("236")).
+			PaddingLeft(1).
+			PaddingRight(1)
+
+	// Messages
+	successStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("82")).
+			Bold(true).
+			PaddingLeft(2)
+	warnStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("214")).
+			Bold(true).
+			PaddingLeft(2)
+
+	// Menu items
+	menuLabelStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("255"))
+	menuLabelSelectedStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("86")).
+				Bold(true)
+	menuDescStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("243"))
+	menuCursorStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("86")).
+			Bold(true)
+	menuSeparatorStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("238"))
+
+	// Headings
+	headingStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("75")).
+			Bold(true).
+			PaddingLeft(2).
+			MarginBottom(1)
+
+	// ON/OFF badges
+	onStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("82")).
+		Bold(true)
+	offStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("243"))
+
+	// Editor values
+	keyStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("255"))
+	keySelectedStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("86")).
+				Bold(true)
+	valueStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("246"))
+	editCursorStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("214"))
 )
 
 // page is the interface each TUI page must implement.
@@ -310,20 +371,23 @@ func (a *App) goBack() {
 // View implements tea.Model.
 func (a *App) View() string {
 	var b strings.Builder
+	w := max(a.width, 40)
 
 	// Title bar.
-	title := titleStyle.Render(fmt.Sprintf("spinctl v%s", a.version))
-	b.WriteString(title)
+	b.WriteString(titleStyle.Render(fmt.Sprintf("spinctl v%s", a.version)))
 	b.WriteString("\n")
-	b.WriteString(strings.Repeat("─", max(a.width, 40)))
+	b.WriteString(dividerStyle.Render(strings.Repeat("─", w)))
 	b.WriteString("\n")
 
 	// Quit confirmation overlay.
 	if a.confirmQuit {
 		b.WriteString("\n")
-		b.WriteString(warnStyle.Render("  You have unsaved changes."))
+		b.WriteString(warnStyle.Render("You have unsaved changes."))
 		b.WriteString("\n\n")
-		b.WriteString("  s: save and quit  y: quit without saving  n: cancel\n")
+		b.WriteString("   " + menuLabelStyle.Render("s") + menuDescStyle.Render(": save and quit   "))
+		b.WriteString(menuLabelStyle.Render("y") + menuDescStyle.Render(": quit without saving   "))
+		b.WriteString(menuLabelStyle.Render("n") + menuDescStyle.Render(": cancel"))
+		b.WriteString("\n")
 		return b.String()
 	}
 
@@ -343,16 +407,20 @@ func (a *App) View() string {
 
 	// Save message.
 	if a.saveMessage != "" {
-		b.WriteString("  " + a.saveMessage + "\n")
+		b.WriteString(a.saveMessage + "\n")
 	}
 
-	// Status bar.
+	// Status bar — full width.
 	a.statusBar.SetModified(a.dirty)
 	hints := "s: save  q: quit  ?: help"
 	if a.currentPage != PageHome {
 		hints = "esc: back  s: save  q: quit"
 	}
-	b.WriteString(a.statusBar.View(hints))
+	bar := statusStyle.Width(w).Render(hints)
+	if a.dirty {
+		bar = statusStyle.Width(w).Render(hints + "  [modified]")
+	}
+	b.WriteString(bar)
 
 	return b.String()
 }

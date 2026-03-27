@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 
@@ -52,26 +51,33 @@ func (f *FeaturesPage) Update(msg tea.Msg) (page, tea.Cmd) {
 
 func (f *FeaturesPage) View() string {
 	var b strings.Builder
-	b.WriteString("\n  Features\n\n")
+	b.WriteString("\n")
+	b.WriteString(headingStyle.Render("Features"))
+	b.WriteString("\n\n")
 
 	if len(f.sortedNames) == 0 {
-		b.WriteString("  No feature flags configured.\n")
-		b.WriteString("\n  esc: back\n")
+		b.WriteString("  " + valueStyle.Render("No feature flags configured.") + "\n")
+		b.WriteString("\n  " + menuDescStyle.Render("esc: back") + "\n")
 		return b.String()
 	}
 
 	for i, name := range f.sortedNames {
+		selected := i == f.cursor
 		cursor := "  "
-		if i == f.cursor {
-			cursor = "▸ "
+		if selected {
+			cursor = menuCursorStyle.Render("▸ ")
 		}
-		status := "OFF"
+		status := offStyle.Render("[OFF]")
 		if f.cfg.Features[name] {
-			status = " ON"
+			status = onStyle.Render("[ ON]")
 		}
-		b.WriteString(fmt.Sprintf("%s[%s] %s\n", cursor, status, name))
+		label := keyStyle.Render(name)
+		if selected {
+			label = keySelectedStyle.Render(name)
+		}
+		b.WriteString(cursor + status + " " + label + "\n")
 	}
 
-	b.WriteString("\n  enter/space: toggle  esc: back\n")
+	b.WriteString("\n  " + menuDescStyle.Render("enter/space: toggle  esc: back") + "\n")
 	return b.String()
 }

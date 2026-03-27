@@ -93,22 +93,24 @@ func (p *ImportPage) runImport() tea.Cmd {
 // View renders the import page.
 func (p *ImportPage) View() string {
 	var b strings.Builder
-	b.WriteString("\n  Import from Halyard\n\n")
-	b.WriteString(fmt.Sprintf("  Source: %s\n", p.halDir))
-	b.WriteString("  A backup will be created before importing.\n\n")
+	b.WriteString("\n")
+	b.WriteString(headingStyle.Render("Import from Halyard"))
+	b.WriteString("\n\n")
+	b.WriteString("  " + keyStyle.Render("Source: ") + valueStyle.Render(p.halDir) + "\n")
+	b.WriteString("  " + menuDescStyle.Render("A backup will be created before importing.") + "\n\n")
 
 	if p.cancelled {
-		b.WriteString("  Import cancelled.\n")
+		b.WriteString("  " + warnStyle.Render("Import cancelled.") + "\n")
 	} else if p.done {
 		if p.err != nil {
-			b.WriteString(fmt.Sprintf("  Import failed: %s\n", p.err))
+			b.WriteString("  " + warnStyle.Render(fmt.Sprintf("Import failed: %s", p.err)) + "\n")
 		} else {
-			b.WriteString(fmt.Sprintf("  Import complete.\n  %s\n", p.result))
+			b.WriteString("  " + successStyle.Render("Import complete.") + "\n  " + p.result + "\n")
 		}
 	} else if p.importing {
-		b.WriteString("  Importing...\n")
+		b.WriteString("  " + keyStyle.Render("Importing...") + "\n")
 	} else {
-		b.WriteString("  Proceed with import? (y/n)\n")
+		b.WriteString("  " + keyStyle.Render("Proceed with import? ") + menuDescStyle.Render("(y/n)") + "\n")
 	}
 
 	return b.String()

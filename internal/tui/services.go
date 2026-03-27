@@ -101,19 +101,27 @@ func (s *ServicesPage) View() string {
 	}
 
 	var b strings.Builder
-	b.WriteString("\n  Services\n\n")
+	b.WriteString("\n")
+	b.WriteString(headingStyle.Render("Services"))
+	b.WriteString("\n\n")
 	for i, name := range s.sortedNames {
 		svc := s.cfg.Services[name]
+		selected := i == s.cursor
 		cursor := "  "
-		if i == s.cursor {
-			cursor = "▸ "
+		if selected {
+			cursor = menuCursorStyle.Render("▸ ")
 		}
-		status := "OFF"
+		status := offStyle.Render("[OFF]")
 		if svc.Enabled {
-			status = " ON"
+			status = onStyle.Render("[ ON]")
 		}
-		b.WriteString(fmt.Sprintf("%s[%s] %-15s %s:%d\n", cursor, status, name, svc.Host, svc.Port))
+		label := keyStyle.Render(fmt.Sprintf("%-15s", name))
+		if selected {
+			label = keySelectedStyle.Render(fmt.Sprintf("%-15s", name))
+		}
+		endpoint := valueStyle.Render(fmt.Sprintf("%s:%d", svc.Host, svc.Port))
+		b.WriteString(fmt.Sprintf("%s%s %s  %s\n", cursor, status, label, endpoint))
 	}
-	b.WriteString("\n  enter: configure  space: toggle  esc: back\n")
+	b.WriteString("\n  " + menuDescStyle.Render("enter: configure  space: toggle  esc: back") + "\n")
 	return b.String()
 }

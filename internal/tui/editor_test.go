@@ -555,7 +555,7 @@ func TestEditorViewConfirmDeleteMode(t *testing.T) {
 	if !strings.Contains(view, "Delete") {
 		t.Error("confirm delete mode should show 'Delete' prompt")
 	}
-	if !strings.Contains(view, "(y/n)") {
+	if !strings.Contains(view, "y/n") {
 		t.Error("confirm delete mode should show y/n options")
 	}
 }

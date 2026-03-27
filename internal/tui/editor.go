@@ -497,60 +497,87 @@ func (e *EditorPage) View() string {
 	var b strings.Builder
 
 	// Breadcrumb.
-	breadcrumb := "root"
+	b.WriteString("\n")
 	if len(e.path) > 0 {
-		breadcrumb = strings.Join(e.path, " > ")
+		parts := make([]string, len(e.path))
+		for i, p := range e.path {
+			if i == len(e.path)-1 {
+				parts[i] = headingStyle.Render(p)
+			} else {
+				parts[i] = valueStyle.Render(p)
+			}
+		}
+		b.WriteString(strings.Join(parts, valueStyle.Render(" > ")))
+	} else {
+		b.WriteString(headingStyle.Render("root"))
 	}
-	b.WriteString(fmt.Sprintf("\n  %s\n\n", breadcrumb))
+	b.WriteString("\n\n")
 
 	// Input prompts for add/delete modes.
 	switch e.mode {
 	case modeAddKey:
-		b.WriteString(fmt.Sprintf("  New key: %s█\n\n", e.editBuffer))
-		b.WriteString("  enter: next  esc: cancel\n")
+		b.WriteString("  " + keyStyle.Render("New key: ") + editCursorStyle.Render(e.editBuffer+"█") + "\n\n")
+		b.WriteString("  " + menuDescStyle.Render("enter: next  esc: cancel") + "\n")
 		return b.String()
 	case modeAddValue:
-		b.WriteString(fmt.Sprintf("  Key: %s\n", e.addKeyBuf))
-		b.WriteString(fmt.Sprintf("  Value: %s█\n\n", e.editBuffer))
-		b.WriteString("  enter: add  esc: cancel\n")
+		b.WriteString("  " + keyStyle.Render("Key: ") + valueStyle.Render(e.addKeyBuf) + "\n")
+		b.WriteString("  " + keyStyle.Render("Value: ") + editCursorStyle.Render(e.editBuffer+"█") + "\n\n")
+		b.WriteString("  " + menuDescStyle.Render("enter: add  esc: cancel") + "\n")
 		return b.String()
 	case modeAddListItem:
-		b.WriteString(fmt.Sprintf("  New item: %s█\n\n", e.editBuffer))
-		b.WriteString("  enter: add  esc: cancel\n")
+		b.WriteString("  " + keyStyle.Render("New item: ") + editCursorStyle.Render(e.editBuffer+"█") + "\n\n")
+		b.WriteString("  " + menuDescStyle.Render("enter: add  esc: cancel") + "\n")
 		return b.String()
 	case modeConfirmDelete:
 		items := e.items()
 		if e.cursor >= 0 && e.cursor < len(items) {
-			b.WriteString(fmt.Sprintf("  Delete '%s'? (y/n)\n", items[e.cursor].key))
+			b.WriteString("  " + warnStyle.Render(fmt.Sprintf("Delete '%s'?", items[e.cursor].key)) + "  " + menuDescStyle.Render("y/n") + "\n")
 		}
 		return b.String()
 	}
 
 	items := e.items()
 	if len(items) == 0 {
-		b.WriteString("  (empty)\n")
-		b.WriteString("\n  +: add  esc: back\n")
+		b.WriteString("  " + valueStyle.Render("(empty)") + "\n")
+		b.WriteString("\n  " + menuDescStyle.Render("+: add  esc: back") + "\n")
 		return b.String()
 	}
 
 	for i, item := range items {
+		selected := i == e.cursor
 		cursor := "  "
-		if i == e.cursor {
-			cursor = "▸ "
+		if selected {
+			cursor = menuCursorStyle.Render("▸ ")
 		}
-		if e.mode == modeEdit && i == e.cursor {
-			b.WriteString(fmt.Sprintf("%s%s: %s█\n", cursor, item.key, e.editBuffer))
+		if e.mode == modeEdit && selected {
+			b.WriteString(cursor + keySelectedStyle.Render(item.key+": ") + editCursorStyle.Render(e.editBuffer+"█") + "\n")
 		} else if item.isScalar && isBoolNode(item.node) {
-			status := "[OFF]"
+			status := offStyle.Render("[OFF]")
 			if item.node.Value == "true" {
-				status = "[ ON]"
+				status = onStyle.Render("[ ON]")
 			}
-			b.WriteString(fmt.Sprintf("%s%-20s %s\n", cursor, item.key, status))
+			label := keyStyle.Render(fmt.Sprintf("%-20s", item.key))
+			if selected {
+				label = keySelectedStyle.Render(fmt.Sprintf("%-20s", item.key))
+			}
+			b.WriteString(cursor + label + " " + status + "\n")
 		} else {
-			b.WriteString(fmt.Sprintf("%s%-20s %s\n", cursor, item.key, item.value))
+			label := keyStyle.Render(fmt.Sprintf("%-20s", item.key))
+			if selected {
+				label = keySelectedStyle.Render(fmt.Sprintf("%-20s", item.key))
+			}
+			val := valueStyle.Render(item.value)
+			// Color ON/OFF badges in item values.
+			if strings.Contains(item.value, "[ ON]") {
+				val = strings.Replace(item.value, "[ ON]", onStyle.Render("[ ON]"), 1)
+				val = strings.Replace(val, "[OFF]", offStyle.Render("[OFF]"), -1)
+			} else if strings.Contains(item.value, "[OFF]") {
+				val = strings.Replace(item.value, "[OFF]", offStyle.Render("[OFF]"), -1)
+			}
+			b.WriteString(cursor + label + " " + val + "\n")
 		}
 	}
 
-	b.WriteString("\n  enter: edit/drill  +: add  d: delete  esc: back\n")
+	b.WriteString("\n  " + menuDescStyle.Render("enter: edit/drill  space: toggle  +: add  d: delete  esc: back") + "\n")
 	return b.String()
 }
