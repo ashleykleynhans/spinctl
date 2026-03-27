@@ -214,7 +214,7 @@ func TestAppDelegatesToServicesPage(t *testing.T) {
 
 func TestAppDelegatesToImportPage(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "", "test")
+	app := NewApp(cfg, "", "/tmp/fake-hal", "test")
 
 	// Navigate to import page.
 	hp := app.homePage.(*HomePage)

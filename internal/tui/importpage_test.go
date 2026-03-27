@@ -53,9 +53,15 @@ func TestImportPageCancel(t *testing.T) {
 
 func TestImportPageDefaultDir(t *testing.T) {
 	ip := NewImportPage("")
-	// Should be either a detected .hal dir or the fallback ~/.hal
+	// If .hal exists, halDir is set and not editing. If not, halDir is empty and editing.
 	if ip.halDir == "" {
-		t.Error("default dir should not be empty")
+		if !ip.editing {
+			t.Error("should be in editing mode when no .hal detected")
+		}
+	} else {
+		if ip.editing {
+			t.Error("should not be in editing mode when .hal detected")
+		}
 	}
 }
 
