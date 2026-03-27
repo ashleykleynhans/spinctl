@@ -84,6 +84,11 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return a, tea.Quit
+		case "esc":
+			if a.currentPage != PageHome {
+				a.goBack()
+				return a, nil
+			}
 		}
 	}
 
@@ -142,6 +147,13 @@ func (a *App) navigateTo(pageID PageID) {
 		a.importPage = NewImportPage("")
 	case PageDeploy:
 		a.deployPage = NewDeployPage(nil)
+	}
+}
+
+func (a *App) goBack() {
+	if len(a.pageStack) > 0 {
+		a.currentPage = a.pageStack[len(a.pageStack)-1]
+		a.pageStack = a.pageStack[:len(a.pageStack)-1]
 	}
 }
 
