@@ -192,3 +192,34 @@ func TestImportPageWithExplicitPath(t *testing.T) {
 		t.Error("should not start in editing mode when path is provided")
 	}
 }
+
+func TestImportPageWithExplicitExistingPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	ip := NewImportPage(tmpDir)
+	if ip.halDir != tmpDir {
+		t.Errorf("halDir = %q, want %q", ip.halDir, tmpDir)
+	}
+	if ip.editing {
+		t.Error("should not be in editing mode when explicit path is provided")
+	}
+	if ip.editBuffer != tmpDir {
+		t.Errorf("editBuffer = %q, want %q", ip.editBuffer, tmpDir)
+	}
+}
+
+func TestImportPageDoneSuccessWithUnmapped(t *testing.T) {
+	ip := NewImportPage("/tmp/hal")
+	ip.Update(importDoneMsg{
+		result: &halimport.ImportResult{
+			DeploymentName: "default",
+			BackupPath:     "/tmp/hal.backup.123",
+			UnmappedFields: []string{"customField1", "customField2"},
+		},
+	})
+	if !ip.done {
+		t.Error("should be done")
+	}
+	if !strings.Contains(ip.result, "customField1") {
+		t.Error("result should include unmapped fields")
+	}
+}

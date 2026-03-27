@@ -187,6 +187,20 @@ func TestLoadDeployStateInvalidJSON(t *testing.T) {
 	}
 }
 
+func TestSaveStateMkdirAllFailure(t *testing.T) {
+	// Use a path that cannot be created (file where dir is expected).
+	tmpDir := t.TempDir()
+	blocker := filepath.Join(tmpDir, "blocker")
+	if err := os.WriteFile(blocker, []byte("x"), 0400); err != nil {
+		t.Fatal(err)
+	}
+	stateFile := filepath.Join(blocker, "sub", "state.json")
+	runner := NewDeployRunner(NewMockExecutor(), tmpDir, filepath.Join(tmpDir, "deploy.log"), stateFile)
+	// saveState should not panic even with unwritable path.
+	runner.saveState([]string{"front50"}, []string{"orca"})
+	// Just verifying no panic; state file won't exist.
+}
+
 func TestRunDeployWithServiceOverride(t *testing.T) {
 	mock := NewMockExecutor()
 	dir := t.TempDir()

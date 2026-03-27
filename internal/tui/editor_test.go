@@ -827,6 +827,244 @@ func TestToggleMapEnabledNonMapping(t *testing.T) {
 	}
 }
 
+func TestEditorItemsScalarNode(t *testing.T) {
+	// A scalar node at the top level should return nil items.
+	node := &yaml.Node{Kind: yaml.ScalarNode, Value: "hello"}
+	ep := NewEditorPage(node, "config")
+	items := ep.items()
+	if items != nil {
+		t.Errorf("scalar node should return nil items, got %d", len(items))
+	}
+}
+
+func TestIsBoolNodeWithTag(t *testing.T) {
+	node := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: "true"}
+	if !isBoolNode(node) {
+		t.Error("node with !!bool tag should be recognized as bool")
+	}
+	node2 := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: "yes"}
+	if !isBoolNode(node2) {
+		t.Error("node with !!bool tag should be recognized as bool regardless of value")
+	}
+}
+
+func TestIsBoolNodeNilNode(t *testing.T) {
+	if isBoolNode(nil) {
+		t.Error("nil node should not be a bool")
+	}
+}
+
+func TestIsBoolNodeNonScalar(t *testing.T) {
+	node := &yaml.Node{Kind: yaml.MappingNode}
+	if isBoolNode(node) {
+		t.Error("mapping node should not be a bool")
+	}
+}
+
+func TestFindMapValueNonMapping(t *testing.T) {
+	node := &yaml.Node{Kind: yaml.SequenceNode}
+	val := findMapValue(node, "key")
+	if val != "" {
+		t.Errorf("findMapValue on non-mapping should return empty, got %q", val)
+	}
+}
+
+func TestHasTypeSelectorNilCurrent(t *testing.T) {
+	ep := NewEditorPage(nil, "config")
+	if ep.hasTypeSelector() {
+		t.Error("nil current should return false for hasTypeSelector")
+	}
+}
+
+func TestIsActiveByTypeSelectorNilCurrent(t *testing.T) {
+	ep := NewEditorPage(nil, "config")
+	if ep.isActiveByTypeSelector("s3") {
+		t.Error("nil current should return false for isActiveByTypeSelector")
+	}
+}
+
+func TestIsActiveByTypeSelectorNonMapping(t *testing.T) {
+	node := &yaml.Node{Kind: yaml.SequenceNode}
+	ep := NewEditorPage(node, "config")
+	if ep.isActiveByTypeSelector("s3") {
+		t.Error("sequence node should return false for isActiveByTypeSelector")
+	}
+}
+
+func TestEditorUpdateEditingEscapeDuringEdit(t *testing.T) {
+	node := makeTestNode("name: original")
+	ep := NewEditorPage(&node, "config")
+
+	// Enter editing mode.
+	ep.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if ep.mode != modeEdit {
+		t.Fatal("should be in edit mode")
+	}
+
+	// Type something then escape.
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x', 'y'}})
+	ep.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	if ep.mode != modeBrowse {
+		t.Error("escape should return to browse mode")
+	}
+	// Value should NOT have been saved.
+	items := ep.items()
+	if items[0].value != "original" {
+		t.Errorf("value = %q, want 'original'", items[0].value)
+	}
+}
+
+func TestEditorUpdateConfirmDeleteEsc(t *testing.T) {
+	node := makeTestNode("a: 1\nb: 2")
+	ep := NewEditorPage(&node, "config")
+
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	if ep.mode != modeConfirmDelete {
+		t.Fatal("should be in confirm delete mode")
+	}
+	ep.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	if ep.mode != modeBrowse {
+		t.Error("esc should cancel delete")
+	}
+	items := ep.items()
+	if len(items) != 2 {
+		t.Errorf("items count = %d, want 2", len(items))
+	}
+}
+
+func TestEditorBrowsingPlusOnNilCurrent(t *testing.T) {
+	ep := NewEditorPage(nil, "config")
+	// Press + on nil current should not panic.
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'+'}})
+	if ep.mode != modeBrowse {
+		t.Error("should stay in browse mode")
+	}
+}
+
+func TestEditorBrowsingDOnEmptyList(t *testing.T) {
+	node := makeTestNode("{}")
+	ep := NewEditorPage(&node, "config")
+	// d on empty map should not enter confirm delete.
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	if ep.mode == modeConfirmDelete {
+		t.Error("should not enter confirm delete on empty map")
+	}
+}
+
+func TestEditorMapItemsEmptyMappingWithTypeSelector(t *testing.T) {
+	// A map with a type selector where a sibling has 0 keys should show [OFF].
+	node := makeTestNode("persistentStoreType: s3\ngcs: {}")
+	ep := NewEditorPage(&node, "config")
+	items := ep.items()
+	for _, item := range items {
+		if item.key == "gcs" {
+			if item.value != "[OFF]" {
+				t.Errorf("empty inactive sibling should show [OFF], got %q", item.value)
+			}
+			return
+		}
+	}
+	t.Error("gcs item not found")
+}
+
+func TestEditorMapItemsEmptyMappingNoTypeSelector(t *testing.T) {
+	node := makeTestNode("inner: {}")
+	ep := NewEditorPage(&node, "config")
+	items := ep.items()
+	if len(items) != 1 {
+		t.Fatalf("items count = %d, want 1", len(items))
+	}
+	if items[0].value != "(empty)" {
+		t.Errorf("empty mapping value = %q, want '(empty)'", items[0].value)
+	}
+}
+
+func TestEditorSpaceTogglesBool(t *testing.T) {
+	node := makeTestNode("enabled: true")
+	ep := NewEditorPage(&node, "config")
+
+	_, cmd := ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}})
+	if cmd == nil {
+		t.Error("space on bool should return configChangedMsg cmd")
+	}
+	items := ep.items()
+	if items[0].value != "false" {
+		t.Errorf("value = %q, want 'false' after space toggle", items[0].value)
+	}
+}
+
+func TestEditorUpdateEditingEnterOnNonScalar(t *testing.T) {
+	// When in edit mode but cursor points to a non-scalar item, enter should
+	// just return to browse mode.
+	node := makeTestNode("inner:\n  key: val")
+	ep := NewEditorPage(&node, "config")
+	// Manually set to edit mode on the mapping entry.
+	ep.mode = modeEdit
+	ep.editBuffer = "something"
+	ep.cursor = 0
+
+	ep.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if ep.mode != modeBrowse {
+		t.Error("enter on non-scalar in edit mode should return to browse")
+	}
+}
+
+func TestEditorBrowsingEnterOnBoolDoesNotEditText(t *testing.T) {
+	// Enter on a boolean scalar should toggle, not enter text edit mode.
+	node := makeTestNode("enabled: false")
+	ep := NewEditorPage(&node, "config")
+	_, cmd := ep.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if cmd == nil {
+		t.Error("enter on bool should return configChangedMsg")
+	}
+	if ep.mode == modeEdit {
+		t.Error("should not enter edit mode for bool toggle")
+	}
+	items := ep.items()
+	if items[0].value != "true" {
+		t.Errorf("value = %q, want 'true'", items[0].value)
+	}
+}
+
+func TestEditorSequenceItemScalarInSequence(t *testing.T) {
+	// Test that sequenceItems handles scalar items.
+	node := makeTestNode("- hello\n- world")
+	ep := NewEditorPage(&node, "config")
+	items := ep.sequenceItems()
+	if len(items) != 2 {
+		t.Fatalf("items = %d, want 2", len(items))
+	}
+	if !items[0].isScalar {
+		t.Error("scalar items in sequence should be marked as scalar")
+	}
+}
+
+func TestEditorMapItemsKeyCountDisplay(t *testing.T) {
+	// A map value that is a mapping without 'enabled' key should show {N keys}.
+	node := makeTestNode("server:\n  host: localhost\n  port: 8080")
+	ep := NewEditorPage(&node, "config")
+	items := ep.items()
+	if len(items) != 1 {
+		t.Fatalf("items = %d, want 1", len(items))
+	}
+	if !strings.Contains(items[0].value, "2 keys") {
+		t.Errorf("value = %q, should contain '2 keys'", items[0].value)
+	}
+}
+
+func TestEditorMapItemsSequenceChild(t *testing.T) {
+	// A map value that is a sequence should show [N items].
+	node := makeTestNode("items:\n  - a\n  - b")
+	ep := NewEditorPage(&node, "config")
+	items := ep.items()
+	if len(items) != 1 {
+		t.Fatalf("items = %d, want 1", len(items))
+	}
+	if !strings.Contains(items[0].value, "2 items") {
+		t.Errorf("value = %q, should contain '2 items'", items[0].value)
+	}
+}
+
 func TestSpacebarTogglesMapEnabled(t *testing.T) {
 	node := makeTestNode("slack:\n  enabled: true\n  botName: spinbot")
 	ep := NewEditorPage(&node, "notifications")

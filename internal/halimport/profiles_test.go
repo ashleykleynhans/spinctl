@@ -241,6 +241,68 @@ func TestImportProfilesInvalidYAML(t *testing.T) {
 	}
 }
 
+func TestImportServiceSettingsSkipsNonYML(t *testing.T) {
+	cfg := config.NewDefault()
+	dir := t.TempDir()
+	// Write a .txt file that should be skipped.
+	os.WriteFile(filepath.Join(dir, "gate.txt"), []byte("host: 0.0.0.0"), 0644)
+
+	importServiceSettings(cfg, dir)
+	gate := cfg.Services[model.Gate]
+	if gate.Host != "localhost" {
+		t.Error("non-.yml files should be skipped")
+	}
+}
+
+func TestImportServiceSettingsSkipsDirectories(t *testing.T) {
+	cfg := config.NewDefault()
+	dir := t.TempDir()
+	// Create a directory named gate.yml.
+	os.MkdirAll(filepath.Join(dir, "gate.yml"), 0755)
+
+	importServiceSettings(cfg, dir)
+	gate := cfg.Services[model.Gate]
+	if gate.Host != "localhost" {
+		t.Error("directories should be skipped even with .yml name")
+	}
+}
+
+func TestImportProfilesUnknownService(t *testing.T) {
+	cfg := config.NewDefault()
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "unknown-local.yml"), []byte("key: val"), 0644)
+
+	importProfiles(cfg, dir)
+	// Should not crash or add anything.
+	if len(cfg.Services) != 10 {
+		t.Errorf("expected 10 services, got %d", len(cfg.Services))
+	}
+}
+
+func TestImportProfilesEmptyFile(t *testing.T) {
+	cfg := config.NewDefault()
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "gate-local.yml"), []byte(""), 0644)
+
+	importProfiles(cfg, dir)
+	gate := cfg.Services[model.Gate]
+	if gate.Settings.Kind != 0 {
+		t.Error("empty profile should not create settings")
+	}
+}
+
+func TestImportProfilesNonYMLSkipped(t *testing.T) {
+	cfg := config.NewDefault()
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "gate.txt"), []byte("key: val"), 0644)
+
+	importProfiles(cfg, dir)
+	gate := cfg.Services[model.Gate]
+	if gate.Settings.Kind != 0 {
+		t.Error("non-.yml profiles should be skipped")
+	}
+}
+
 func TestFullImportWithProfilesAndServiceSettings(t *testing.T) {
 	// Create a fake .hal directory with all components.
 	halDir := t.TempDir()

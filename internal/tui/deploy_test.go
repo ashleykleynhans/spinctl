@@ -350,6 +350,43 @@ func TestDeployPageUnknownVersion(t *testing.T) {
 	}
 }
 
+func TestDeployPageDoneWithResultsTiming(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.Version = "1.35.0"
+	dp := NewDeployPage(cfg)
+	dp.building = false
+	dp.confirmed = true
+	dp.plan = &deploy.DeployPlan{Steps: []deploy.DeployStep{{Services: []model.ServiceName{model.Gate, model.Orca}}}}
+	dp.versions = map[model.ServiceName]string{model.Gate: "6.62.0", model.Orca: "8.47.0"}
+
+	dp.Update(deployDoneMsg{
+		results: []deploy.DeployResult{
+			{Service: model.Gate, Version: "6.62.0"},
+			{Service: model.Orca, Version: "8.47.0", Err: fmt.Errorf("restart failed")},
+		},
+		err: fmt.Errorf("deploy failed"),
+	})
+
+	view := dp.View()
+	if !strings.Contains(view, "OK") {
+		t.Error("should show OK for successful service")
+	}
+	if !strings.Contains(view, "FAIL") {
+		t.Error("should show FAIL for failed service")
+	}
+}
+
+func TestDeployPageNilPlan(t *testing.T) {
+	cfg := config.NewDefault()
+	dp := NewDeployPage(cfg)
+	dp.building = false
+	// plan is nil
+	view := dp.View()
+	if !strings.Contains(view, "No deploy plan") {
+		t.Error("should show 'No deploy plan available' for nil plan")
+	}
+}
+
 func TestDeployPageNonKeyMsg(t *testing.T) {
 	cfg := config.NewDefault()
 	dp := NewDeployPage(cfg)

@@ -240,3 +240,47 @@ func TestSaveToFileCreatesDirectory(t *testing.T) {
 		t.Fatalf("file not created: %v", err)
 	}
 }
+
+func TestSaveToFileReadOnlyDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Create a read-only file where MkdirAll needs to create a child dir.
+	blocker := filepath.Join(tmpDir, "blocker")
+	if err := os.WriteFile(blocker, []byte("x"), 0400); err != nil {
+		t.Fatal(err)
+	}
+	cfg := NewDefault()
+	// Try to save inside a path that goes through the blocker file (not a dir).
+	err := SaveToFile(cfg, filepath.Join(blocker, "sub", "config.yaml"))
+	if err == nil {
+		t.Error("expected error when directory cannot be created")
+	}
+}
+
+func TestDefaultConfigDirWithHome(t *testing.T) {
+	// Ensure HOME is set so we exercise the success path.
+	home := os.Getenv("HOME")
+	if home == "" {
+		t.Setenv("HOME", "/tmp")
+	}
+	dir := DefaultConfigDir()
+	if !filepath.IsAbs(dir) {
+		t.Errorf("DefaultConfigDir() = %q, expected absolute path", dir)
+	}
+	if filepath.Base(dir) != ".spinctl" {
+		t.Errorf("DefaultConfigDir() base = %q, want '.spinctl'", filepath.Base(dir))
+	}
+}
+
+func TestAcquireLockEnsureDirFailure(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Create a file where a directory is expected.
+	blocker := filepath.Join(tmpDir, "blocker")
+	if err := os.WriteFile(blocker, []byte("x"), 0400); err != nil {
+		t.Fatal(err)
+	}
+	lockPath := filepath.Join(blocker, "sub", ".lock")
+	_, err := AcquireLock(lockPath)
+	if err == nil {
+		t.Error("expected error when ensureDir fails")
+	}
+}

@@ -2,13 +2,35 @@ package deploy
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/spinnaker/spinctl/internal/config"
 	"github.com/spinnaker/spinctl/internal/model"
 )
+
+// countingExecutor wraps an Executor and fails after a certain number of calls.
+type countingExecutor struct {
+	inner     Executor
+	failAfter int
+	failErr   error
+	mu        sync.Mutex
+	count     int
+}
+
+func (c *countingExecutor) Run(ctx context.Context, name string, args ...string) error {
+	c.mu.Lock()
+	c.count++
+	n := c.count
+	c.mu.Unlock()
+	if n > c.failAfter {
+		return fmt.Errorf("call %d: %w", n, c.failErr)
+	}
+	return c.inner.Run(ctx, name, args...)
+}
 
 func TestDebianDeployerCheckSudo(t *testing.T) {
 	mock := NewMockExecutor()
@@ -121,6 +143,76 @@ func TestDebianDeployerDeployServiceInstallFails(t *testing.T) {
 	err := d.DeployService(context.Background(), model.Orca, "8.47.0")
 	if err == nil {
 		t.Error("expected error when install fails")
+	}
+}
+
+func TestDebianDeployerDeployServiceRestartFails(t *testing.T) {
+	mock := NewMockExecutor()
+	d := NewDebianDeployer(mock, t.TempDir())
+
+	// Make systemctl restart fail by succeeding the first two sudo calls
+	// (install and daemon-reload), then failing the third (restart).
+	customExec := &countingExecutor{
+		inner:     mock,
+		failAfter: 2, // fail on 3rd call
+		failErr:   errSimulated,
+	}
+	d2 := NewDebianDeployer(customExec, t.TempDir())
+
+	err := d2.DeployService(context.Background(), model.Orca, "8.47.0")
+	if err == nil {
+		t.Error("expected error when restart fails")
+	}
+	// The mock executor with no failures verifies basic command routing.
+	_ = d.CheckSudo(context.Background())
+}
+
+func TestDebianDeployerDeployServiceDaemonReloadFails(t *testing.T) {
+	// Succeed on install (1st call), fail on daemon-reload (2nd call).
+	customExec := &countingExecutor{
+		inner:     NewMockExecutor(),
+		failAfter: 1,
+		failErr:   errSimulated,
+	}
+	d := NewDebianDeployer(customExec, t.TempDir())
+	err := d.DeployService(context.Background(), model.Orca, "8.47.0")
+	if err == nil {
+		t.Error("expected error when daemon-reload fails")
+	}
+}
+
+func TestWriteServiceConfigMkdirAllError(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Create a file that blocks directory creation.
+	blocker := filepath.Join(tmpDir, "blocker")
+	if err := os.WriteFile(blocker, []byte("x"), 0400); err != nil {
+		t.Fatal(err)
+	}
+	mock := NewMockExecutor()
+	d := NewDebianDeployer(mock, blocker) // configDir is a file, not a dir
+	err := d.WriteServiceConfig(model.Orca, config.ServiceConfig{Port: 8083})
+	if err == nil {
+		t.Error("expected error when MkdirAll fails")
+	}
+}
+
+func TestWriteServiceConfigWriteFileError(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Create a read-only service directory so WriteFile fails.
+	svcDir := filepath.Join(tmpDir, "orca")
+	if err := os.MkdirAll(svcDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	// Create a subdirectory where the config file should go (instead of a file).
+	configFile := filepath.Join(svcDir, "orca.yml")
+	if err := os.MkdirAll(configFile, 0755); err != nil {
+		t.Fatal(err)
+	}
+	mock := NewMockExecutor()
+	d := NewDebianDeployer(mock, tmpDir)
+	err := d.WriteServiceConfig(model.Orca, config.ServiceConfig{Port: 8083})
+	if err == nil {
+		t.Error("expected error when WriteFile fails")
 	}
 }
 

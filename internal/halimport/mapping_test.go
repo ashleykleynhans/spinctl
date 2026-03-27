@@ -1,6 +1,7 @@
 package halimport
 
 import (
+	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -294,6 +295,18 @@ func TestParseHalFileInvalid(t *testing.T) {
 	_, err := parseHalFile("/nonexistent/path/config")
 	if err == nil {
 		t.Error("expected error for nonexistent file")
+	}
+}
+
+func TestParseHalFileInvalidYAML(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "config")
+	if err := os.WriteFile(path, []byte("{{invalid yaml"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := parseHalFile(path)
+	if err == nil {
+		t.Error("expected error for invalid YAML")
 	}
 }
 

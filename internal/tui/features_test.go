@@ -57,6 +57,33 @@ func TestFeaturesPageEmpty(t *testing.T) {
 	}
 }
 
+func TestFeaturesPageNonKeyMessage(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.Features["alpha"] = true
+	fp := NewFeaturesPage(cfg)
+	type customMsg struct{}
+	result, cmd := fp.Update(customMsg{})
+	if result != fp {
+		t.Error("non-key msg should return same page")
+	}
+	if cmd != nil {
+		t.Error("non-key msg should return nil cmd")
+	}
+}
+
+func TestFeaturesPageSpaceToggle(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.Features["artifacts"] = true
+	fp := NewFeaturesPage(cfg)
+	_, cmd := fp.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}})
+	if cmd == nil {
+		t.Error("space should toggle and return configChangedMsg")
+	}
+	if cfg.Features["artifacts"] {
+		t.Error("artifacts should be false after space toggle")
+	}
+}
+
 func TestFeaturesPageNavigation(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Features["alpha"] = true

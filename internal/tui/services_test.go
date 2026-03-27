@@ -178,6 +178,24 @@ func TestServicesPageEditorEscReturnsToList(t *testing.T) {
 	}
 }
 
+func TestServicesPageEditorForwardsNonEscKey(t *testing.T) {
+	cfg := config.NewDefault()
+	sp := NewServicesPage(cfg)
+
+	// Enter to open editor.
+	sp.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if sp.editor == nil {
+		t.Fatal("should have editor after enter")
+	}
+
+	// Send a non-esc key to the editor.
+	sp.Update(tea.KeyMsg{Type: tea.KeyDown})
+	// Editor should still be active.
+	if sp.editor == nil {
+		t.Error("editor should remain active after non-esc key")
+	}
+}
+
 func TestServicesPageEscSendsGoBack(t *testing.T) {
 	cfg := config.NewDefault()
 	sp := NewServicesPage(cfg)

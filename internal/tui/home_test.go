@@ -153,6 +153,23 @@ func TestHomePageSelectDoesNotSelectSeparator(t *testing.T) {
 	}
 }
 
+func TestHomePageDownArrowWrapping(t *testing.T) {
+	cfg := config.NewDefault()
+	hp := NewHomePage(cfg)
+
+	// Navigate to last item.
+	hp.cursor = len(hp.items) - 1
+	// Ensure it's not a separator.
+	if hp.items[hp.cursor].separator {
+		hp.cursor--
+	}
+	// Press down arrow to wrap.
+	hp.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if hp.cursor != 0 {
+		t.Errorf("cursor should wrap to 0, got %d", hp.cursor)
+	}
+}
+
 func TestHomePageNonKeyMessage(t *testing.T) {
 	cfg := config.NewDefault()
 	hp := NewHomePage(cfg)

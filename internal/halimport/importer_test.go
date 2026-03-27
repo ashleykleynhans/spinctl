@@ -222,6 +222,97 @@ func TestImportWithoutBackup(t *testing.T) {
 	}
 }
 
+func TestCopyDirPermissionError(t *testing.T) {
+	src := t.TempDir()
+	// Create a file in the source.
+	if err := os.WriteFile(filepath.Join(src, "file.txt"), []byte("data"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Try to copy to a path where the parent cannot be created (file instead of dir).
+	blocker := filepath.Join(t.TempDir(), "blocker")
+	if err := os.WriteFile(blocker, []byte("x"), 0400); err != nil {
+		t.Fatal(err)
+	}
+	err := copyDir(src, filepath.Join(blocker, "sub"))
+	if err == nil {
+		t.Error("expected error when destination dir cannot be created")
+	}
+}
+
+func TestCopyDirUnreadableSrc(t *testing.T) {
+	src := t.TempDir()
+	subDir := filepath.Join(src, "sub")
+	if err := os.MkdirAll(subDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(subDir, "file.txt"), []byte("data"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Make subdirectory unreadable.
+	os.Chmod(subDir, 0000)
+	defer os.Chmod(subDir, 0755)
+
+	dst := filepath.Join(t.TempDir(), "copy")
+	err := copyDir(src, dst)
+	if err == nil {
+		t.Error("expected error when src subdirectory is unreadable")
+	}
+}
+
+func TestCopyFileToUnwritableDst(t *testing.T) {
+	src := filepath.Join(t.TempDir(), "src.txt")
+	if err := os.WriteFile(src, []byte("data"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Try to write to a path where parent is a file.
+	blocker := filepath.Join(t.TempDir(), "blocker")
+	if err := os.WriteFile(blocker, []byte("x"), 0400); err != nil {
+		t.Fatal(err)
+	}
+	err := copyFile(src, filepath.Join(blocker, "out.txt"))
+	if err == nil {
+		t.Error("expected error when destination cannot be opened")
+	}
+}
+
+func TestImportWithBackupEnabled(t *testing.T) {
+	tmpDir := t.TempDir()
+	halDir := filepath.Join(tmpDir, ".hal")
+	if err := os.MkdirAll(halDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+
+	srcData, err := os.ReadFile(testdataPath("basic_hal_config.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(halDir, "config"), srcData, 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	outputPath := filepath.Join(tmpDir, "spinctl", "config.yaml")
+	result, err := Import(ImportOptions{
+		HalDir:     halDir,
+		OutputPath: outputPath,
+		Backup:     true,
+	})
+	if err != nil {
+		t.Fatalf("Import: %v", err)
+	}
+
+	if result.BackupPath == "" {
+		t.Error("expected backup path")
+	}
+	// Verify backup directory exists and contains the config.
+	backupConfig := filepath.Join(result.BackupPath, "config")
+	if _, err := os.Stat(backupConfig); err != nil {
+		t.Errorf("backup config not found: %v", err)
+	}
+}
+
 func TestImportUsesCurrentDeployment(t *testing.T) {
 	tmpDir := t.TempDir()
 	halDir := filepath.Join(tmpDir, ".hal")

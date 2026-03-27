@@ -564,3 +564,153 @@ func TestWizardVersionEscCancelsEditing(t *testing.T) {
 		t.Error("editing should be false after esc")
 	}
 }
+
+func TestWizardEditingEmptyEnterDoesNothing(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardVersion
+	w.editing = true
+	w.editBuffer = ""
+	w.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	// With empty buffer, should stay editing and not start validation.
+	if w.validating {
+		t.Error("should not start validation with empty buffer")
+	}
+}
+
+func TestWizardEditingBackspaceOnEmpty(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardVersion
+	w.editing = true
+	w.editBuffer = ""
+	w.Update(tea.KeyMsg{Type: tea.KeyBackspace})
+	if w.editBuffer != "" {
+		t.Errorf("editBuffer = %q, want empty", w.editBuffer)
+	}
+}
+
+func TestWizardUpdateVersionReturnsNoCmd(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardVersion
+	// When not editing, version step returns w, nil.
+	_, cmd := w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	if cmd != nil {
+		t.Error("updateVersion should return nil cmd")
+	}
+}
+
+func TestWizardUpdateProviderFieldsNilForm(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardProviderFields
+	w.providerForm = nil
+	_, cmd := w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	if cmd != nil {
+		t.Error("nil providerForm should return nil cmd")
+	}
+}
+
+func TestWizardUpdateStorageFieldsNilForm(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardStorageFields
+	w.storageForm = nil
+	_, cmd := w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	if cmd != nil {
+		t.Error("nil storageForm should return nil cmd")
+	}
+}
+
+func TestWizardUpdateDoneNonEnterKey(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardDone
+	_, cmd := w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	if cmd != nil {
+		t.Error("non-enter key on done step should return nil cmd")
+	}
+}
+
+func TestWizardProviderNavigationWrapping(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardProvider
+	// Wrap up from 0.
+	w.providerCursor = 0
+	w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	if w.providerCursor != len(w.providerNames)-1 {
+		t.Errorf("providerCursor = %d, want %d", w.providerCursor, len(w.providerNames)-1)
+	}
+	// Wrap down from last.
+	w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	if w.providerCursor != 0 {
+		t.Errorf("providerCursor = %d, want 0", w.providerCursor)
+	}
+}
+
+func TestWizardStorageNavigationWrapping(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardStorage
+	// Wrap up from 0.
+	w.storageCursor = 0
+	w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	if w.storageCursor != len(w.storageOptions)-1 {
+		t.Errorf("storageCursor = %d, want %d", w.storageCursor, len(w.storageOptions)-1)
+	}
+	// Wrap down from last.
+	w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	if w.storageCursor != 0 {
+		t.Errorf("storageCursor = %d, want 0", w.storageCursor)
+	}
+}
+
+func TestWizardServicesCursorWrapping(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardServices
+	names := model.AllServiceNames()
+	// Wrap up from 0.
+	w.cursor = 0
+	w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	if w.cursor != len(names)-1 {
+		t.Errorf("cursor = %d, want %d", w.cursor, len(names)-1)
+	}
+	// Wrap down from last.
+	w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	if w.cursor != 0 {
+		t.Errorf("cursor = %d, want 0", w.cursor)
+	}
+}
+
+func TestWizardViewDoneWithProviders(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardDone
+	w.cfg.Version = "1.35.0"
+	w.cfg.Providers = map[string]config.ProviderConfig{
+		"kubernetes": {Enabled: true, Accounts: []config.ProviderAccount{{Name: "prod"}}},
+	}
+	view := w.View()
+	if !strings.Contains(view, "kubernetes") {
+		t.Error("done view should show provider name")
+	}
+	if !strings.Contains(view, "1 account") {
+		t.Error("done view should show account count")
+	}
+}
+
+func TestWizardViewDoneWithStorage(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardDone
+	w.cfg.Version = "1.35.0"
+	w.cfg.PersistentStorage = map[string]any{
+		"persistentStoreType": "s3",
+	}
+	view := w.View()
+	if !strings.Contains(view, "s3") {
+		t.Error("done view should show storage type")
+	}
+}
+
+func TestWizardViewDoneNoStorageNoProviders(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardDone
+	w.cfg.Version = "1.35.0"
+	view := w.View()
+	if !strings.Contains(view, "none (skipped)") {
+		t.Error("done view should show 'none (skipped)' when no providers/storage")
+	}
+}

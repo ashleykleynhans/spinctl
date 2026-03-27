@@ -91,6 +91,20 @@ func TestVersionPageEsc(t *testing.T) {
 	}
 }
 
+func TestVersionPageNonKeyMessage(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.Version = "1.35.0"
+	vp := NewVersionPage(cfg)
+	type customMsg struct{}
+	result, cmd := vp.Update(customMsg{})
+	if result != vp {
+		t.Error("non-key msg should return same page")
+	}
+	if cmd != nil {
+		t.Error("non-key msg should return nil cmd")
+	}
+}
+
 func TestVersionPageEditView(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Version = "1.35.0"

@@ -99,6 +99,24 @@ func TestFetchBOMCorruptCacheRefetches(t *testing.T) {
 	}
 }
 
+func TestLoadFromCacheCorruptYAML(t *testing.T) {
+	cacheDir := t.TempDir()
+	cachedPath := filepath.Join(cacheDir, "bad.yml")
+	// Write valid YAML but missing version field (parseBOMBytes requires version).
+	if err := os.WriteFile(cachedPath, []byte("services:\n  orca:\n    version: 1.0\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	fetcher := NewBOMFetcher("http://unused/%s.yml", cacheDir)
+	_, err := fetcher.loadFromCache(cachedPath)
+	if err == nil {
+		t.Error("expected error for BOM without version field")
+	}
+	// Corrupt cache should be removed.
+	if _, statErr := os.Stat(cachedPath); !os.IsNotExist(statErr) {
+		t.Error("corrupt cached file should be removed")
+	}
+}
+
 func TestFetchBOMNetworkFailNoCacheErrors(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)

@@ -111,6 +111,46 @@ func TestProvidersPageNavigation(t *testing.T) {
 	}
 }
 
+func TestProvidersPageNavigationWrapping(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.Providers = map[string]config.ProviderConfig{
+		"aws":        {Enabled: false},
+		"gce":        {Enabled: false},
+		"kubernetes": {Enabled: true},
+	}
+
+	pp := NewProvidersPage(cfg)
+
+	// Move down to last.
+	pp.cursor = len(pp.sortedNames) - 1
+	pp.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	// Should NOT wrap (no wrapping in providers).
+	if pp.cursor != len(pp.sortedNames)-1 {
+		t.Errorf("cursor should stay at last, got %d", pp.cursor)
+	}
+}
+
+func TestProvidersPageEditorForwardsNonEscKey(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.Providers = map[string]config.ProviderConfig{
+		"kubernetes": {Enabled: true, Accounts: []config.ProviderAccount{{Name: "prod"}}},
+	}
+
+	pp := NewProvidersPage(cfg)
+	// Drill in.
+	pp.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if pp.editor == nil {
+		t.Fatal("should have editor")
+	}
+
+	// Send a non-esc key (e.g., down arrow).
+	pp.Update(tea.KeyMsg{Type: tea.KeyDown})
+	// Editor should still be active.
+	if pp.editor == nil {
+		t.Error("editor should remain active after non-esc key")
+	}
+}
+
 func TestProvidersPageEditorEscReturnsToList(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Providers = map[string]config.ProviderConfig{

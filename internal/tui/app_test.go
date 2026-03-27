@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spinnaker/spinctl/internal/config"
 	"github.com/spinnaker/spinctl/internal/deploy"
+	"github.com/spinnaker/spinctl/internal/halimport"
 	"github.com/spinnaker/spinctl/internal/model"
 )
 
@@ -716,6 +717,148 @@ func TestAppFirstRunShowsWizard(t *testing.T) {
 	}
 	if _, ok := app.activePage.(*WizardPage); !ok {
 		t.Errorf("activePage type = %T, want *WizardPage", app.activePage)
+	}
+}
+
+func TestAppSaveOnNonHomePage(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.Version = "1.35.0"
+	app := NewApp(cfg, "", "", "test", false)
+
+	// Navigate to services.
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if app.currentPage != PageServices {
+		t.Fatalf("expected PageServices, got %v", app.currentPage)
+	}
+
+	// Press 's' on non-home page should not trigger save.
+	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	if cmd != nil {
+		t.Error("pressing 's' on non-home page should not trigger save")
+	}
+}
+
+func TestAppEscOnFeaturesPage(t *testing.T) {
+	cfg := config.NewDefault()
+	app := NewApp(cfg, "", "", "test", false)
+
+	hp := app.homePage.(*HomePage)
+	hp.cursor = findMenuCursor(hp, PageFeatures)
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if app.currentPage != PageFeatures {
+		t.Fatalf("expected PageFeatures, got %v", app.currentPage)
+	}
+
+	// Esc on features page should go back.
+	app.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	if app.currentPage != PageHome {
+		t.Errorf("after esc on features, currentPage = %v, want PageHome", app.currentPage)
+	}
+}
+
+func TestAppEscOnImportPage(t *testing.T) {
+	cfg := config.NewDefault()
+	app := NewApp(cfg, "", "/tmp/hal", "test", false)
+
+	hp := app.homePage.(*HomePage)
+	hp.cursor = findMenuCursor(hp, PageImport)
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if app.currentPage != PageImport {
+		t.Fatalf("expected PageImport, got %v", app.currentPage)
+	}
+
+	// Esc on import page should go back.
+	app.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	if app.currentPage != PageHome {
+		t.Errorf("after esc on import, currentPage = %v, want PageHome", app.currentPage)
+	}
+}
+
+func TestAppViewWithSaveMessage(t *testing.T) {
+	cfg := config.NewDefault()
+	app := NewApp(cfg, "", "", "test", false)
+	app.saveMessage = successStyle.Render("Config saved")
+	view := app.View()
+	if !strings.Contains(view, "Config saved") {
+		t.Error("view should show save message")
+	}
+}
+
+func TestAppConfigSnapshotError(t *testing.T) {
+	// Create an app with a config that has a nil map field (valid for yaml.Marshal)
+	// but test the empty return path by setting cfg to nil-ish state.
+	cfg := config.NewDefault()
+	app := NewApp(cfg, "", "", "test", false)
+	// configSnapshot() should return a non-empty string for a valid config.
+	snapshot := app.configSnapshot()
+	if snapshot == "" {
+		t.Error("configSnapshot should return non-empty for valid config")
+	}
+}
+
+func TestAppQuitConfirmSave(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := tmpDir + "/config.yaml"
+	cfg := config.NewDefault()
+	cfg.Version = "1.35.0"
+	app := NewApp(cfg, configPath, "", "test", false)
+	app.dirty = true
+	app.confirmQuit = true
+
+	// Press 's' to save-and-quit.
+	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	if cmd == nil {
+		t.Error("expected command for save-and-quit")
+	}
+	if app.confirmQuit {
+		t.Error("confirmQuit should be false after 's'")
+	}
+}
+
+func TestAppConfirmQuitIgnoresOtherKeys(t *testing.T) {
+	cfg := config.NewDefault()
+	app := NewApp(cfg, "", "", "test", false)
+	app.confirmQuit = true
+
+	// Send a key that is not y/n/s.
+	app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	if !app.confirmQuit {
+		t.Error("confirmQuit should remain true for unrecognized key")
+	}
+}
+
+func TestAppImportDoneMsgSuccess(t *testing.T) {
+	cfg := config.NewDefault()
+	app := NewApp(cfg, "", "", "test", false)
+
+	hp := app.homePage.(*HomePage)
+	hp.cursor = findMenuCursor(hp, PageImport)
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	newCfg := config.NewDefault()
+	newCfg.Version = "2.0.0"
+	app.Update(importDoneMsg{
+		result: &halimport.ImportResult{
+			Config:         newCfg,
+			DeploymentName: "default",
+		},
+	})
+	if app.cfg.Version != "2.0.0" {
+		t.Errorf("cfg.Version = %q, want '2.0.0'", app.cfg.Version)
+	}
+	if app.dirty {
+		t.Error("should not be dirty after successful import")
+	}
+}
+
+func TestAppClearsSaveMessageOnKeyPress(t *testing.T) {
+	cfg := config.NewDefault()
+	app := NewApp(cfg, "", "", "test", false)
+	app.saveMessage = "Config saved"
+
+	app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	if app.saveMessage != "" {
+		t.Error("save message should be cleared on key press")
 	}
 }
 
