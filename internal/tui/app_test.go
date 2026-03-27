@@ -114,7 +114,7 @@ func TestAppNavigateToServices(t *testing.T) {
 	if app.currentPage != PageServices {
 		t.Errorf("currentPage = %v, want PageServices", app.currentPage)
 	}
-	if app.servicesPage == nil {
+	if app.activePage == nil {
 		t.Error("services page should be created after navigation")
 	}
 	view := app.View()
@@ -168,8 +168,8 @@ func TestAppPageStackTracksHistory(t *testing.T) {
 	if len(app.pageStack) != 1 {
 		t.Errorf("pageStack len after navigate = %d, want 1", len(app.pageStack))
 	}
-	if app.pageStack[0] != PageHome {
-		t.Errorf("pageStack[0] = %v, want PageHome", app.pageStack[0])
+	if app.pageStack[0].id != PageHome {
+		t.Errorf("pageStack[0].id = %v, want PageHome", app.pageStack[0].id)
 	}
 }
 
@@ -206,7 +206,7 @@ func TestAppDelegatesToServicesPage(t *testing.T) {
 
 	// Send a key to the services page (down arrow).
 	app.Update(tea.KeyMsg{Type: tea.KeyDown})
-	sp := app.servicesPage.(*ServicesPage)
+	sp := app.activePage.(*ServicesPage)
 	if sp.cursor != 1 {
 		t.Errorf("services cursor = %d, want 1", sp.cursor)
 	}
@@ -226,7 +226,7 @@ func TestAppDelegatesToImportPage(t *testing.T) {
 
 	// Send a key to the import page (y to confirm).
 	app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
-	ip := app.importPage.(*ImportPage)
+	ip := app.activePage.(*ImportPage)
 	if !ip.confirmed {
 		t.Error("import page should be confirmed after 'y'")
 	}
@@ -246,7 +246,7 @@ func TestAppDelegatesToDeployPage(t *testing.T) {
 
 	// Send 'y' to confirm deploy.
 	app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
-	dp := app.deployPage.(*DeployPage)
+	dp := app.activePage.(*DeployPage)
 	if !dp.confirmed {
 		t.Error("deploy page should be confirmed after 'y'")
 	}
@@ -504,7 +504,7 @@ func TestAppNavigateToArtifacts(t *testing.T) {
 	if app.currentPage != PageArtifacts {
 		t.Errorf("currentPage = %v, want PageArtifacts", app.currentPage)
 	}
-	if app.editorPage == nil {
+	if app.activePage == nil {
 		t.Error("editor page should be created for Artifacts")
 	}
 }
@@ -520,7 +520,7 @@ func TestAppNavigateToNotifications(t *testing.T) {
 	if app.currentPage != PageNotifications {
 		t.Errorf("currentPage = %v, want PageNotifications", app.currentPage)
 	}
-	if app.editorPage == nil {
+	if app.activePage == nil {
 		t.Error("editor page should be created for Notifications")
 	}
 }
@@ -536,7 +536,7 @@ func TestAppNavigateToCI(t *testing.T) {
 	if app.currentPage != PageCI {
 		t.Errorf("currentPage = %v, want PageCI", app.currentPage)
 	}
-	if app.editorPage == nil {
+	if app.activePage == nil {
 		t.Error("editor page should be created for CI")
 	}
 }
@@ -552,7 +552,7 @@ func TestAppNavigateToPersistentStorage(t *testing.T) {
 	if app.currentPage != PagePersistentStorage {
 		t.Errorf("currentPage = %v, want PagePersistentStorage", app.currentPage)
 	}
-	if app.editorPage == nil {
+	if app.activePage == nil {
 		t.Error("editor page should be created for PersistentStorage")
 	}
 }
@@ -568,7 +568,7 @@ func TestAppNavigateToCanary(t *testing.T) {
 	if app.currentPage != PageCanary {
 		t.Errorf("currentPage = %v, want PageCanary", app.currentPage)
 	}
-	if app.editorPage == nil {
+	if app.activePage == nil {
 		t.Error("editor page should be created for Canary")
 	}
 }
@@ -604,7 +604,7 @@ func TestAppNavigateToRepository(t *testing.T) {
 	if app.currentPage != PageRepository {
 		t.Errorf("currentPage = %v, want PageRepository", app.currentPage)
 	}
-	if app.editorPage == nil {
+	if app.activePage == nil {
 		t.Error("editor page should be created for Repository")
 	}
 }
@@ -620,7 +620,7 @@ func TestAppNavigateToWebhook(t *testing.T) {
 	if app.currentPage != PageWebhook {
 		t.Errorf("currentPage = %v, want PageWebhook", app.currentPage)
 	}
-	if app.editorPage == nil {
+	if app.activePage == nil {
 		t.Error("editor page should be created for Webhook")
 	}
 }
@@ -636,7 +636,7 @@ func TestAppNavigateToMetricStores(t *testing.T) {
 	if app.currentPage != PageMetricStores {
 		t.Errorf("currentPage = %v, want PageMetricStores", app.currentPage)
 	}
-	if app.editorPage == nil {
+	if app.activePage == nil {
 		t.Error("editor page should be created for MetricStores")
 	}
 }
@@ -652,7 +652,7 @@ func TestAppNavigateToDeploymentEnv(t *testing.T) {
 	if app.currentPage != PageDeploymentEnv {
 		t.Errorf("currentPage = %v, want PageDeploymentEnv", app.currentPage)
 	}
-	if app.editorPage == nil {
+	if app.activePage == nil {
 		t.Error("editor page should be created for DeploymentEnv")
 	}
 }
@@ -667,7 +667,7 @@ func TestAppNavigateToSpinnaker(t *testing.T) {
 	if app.currentPage != PageSpinnaker {
 		t.Errorf("currentPage = %v, want PageSpinnaker", app.currentPage)
 	}
-	if app.editorPage == nil {
+	if app.activePage == nil {
 		t.Error("editor page should be created for Spinnaker")
 	}
 }
@@ -683,7 +683,7 @@ func TestAppNavigateToPubsub(t *testing.T) {
 	if app.currentPage != PagePubsub {
 		t.Errorf("currentPage = %v, want PagePubsub", app.currentPage)
 	}
-	if app.editorPage == nil {
+	if app.activePage == nil {
 		t.Error("editor page should be created for Pubsub")
 	}
 }

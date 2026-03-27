@@ -63,6 +63,12 @@ type goBackMsg struct{}
 // configChangedMsg signals that config data was modified.
 type configChangedMsg struct{}
 
+// pageEntry stores a page and its ID for the navigation stack.
+type pageEntry struct {
+	id   PageID
+	page page
+}
+
 // App is the root bubbletea model and page router.
 type App struct {
 	cfg            *config.SpinctlConfig
@@ -70,12 +76,9 @@ type App struct {
 	version        string
 	savedSnapshot  string // YAML snapshot of last saved state
 	currentPage    PageID
-	pageStack      []PageID
+	activePage     page // current active sub-page
+	pageStack      []pageEntry
 	homePage       page
-	servicesPage   page
-	editorPage     page
-	importPage     page
-	deployPage     page
 	dirty          bool
 	width          int
 	height         int
@@ -194,8 +197,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Delegate to current page.
 	var cmd tea.Cmd
-	switch a.currentPage {
-	case PageHome:
+	if a.currentPage == PageHome {
 		if a.homePage != nil {
 			var updated page
 			updated, cmd = a.homePage.Update(msg)
@@ -207,33 +209,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				hp.selected = 0
 			}
 		}
-	case PageServices:
-		if a.servicesPage != nil {
-			var updated page
-			updated, cmd = a.servicesPage.Update(msg)
-			a.servicesPage = updated
-		}
-		case PageProviders, PageSecurity, PageFeatures, PageVersion,
-		PageArtifacts, PagePersistentStorage, PageNotifications, PageCI,
-		PageRepository, PagePubsub, PageCanary, PageWebhook,
-		PageMetricStores, PageDeploymentEnv, PageSpinnaker, PageEditor:
-		if a.editorPage != nil {
-			var updated page
-			updated, cmd = a.editorPage.Update(msg)
-			a.editorPage = updated
-		}
-	case PageImport:
-		if a.importPage != nil {
-			var updated page
-			updated, cmd = a.importPage.Update(msg)
-			a.importPage = updated
-		}
-	case PageDeploy:
-		if a.deployPage != nil {
-			var updated page
-			updated, cmd = a.deployPage.Update(msg)
-			a.deployPage = updated
-		}
+	} else if a.activePage != nil {
+		var updated page
+		updated, cmd = a.activePage.Update(msg)
+		a.activePage = updated
 	}
 
 	return a, cmd
@@ -259,46 +238,48 @@ func (a *App) checkDirty() {
 }
 
 func (a *App) navigateTo(pageID PageID) {
-	a.pageStack = append(a.pageStack, a.currentPage)
+	// Save current page to stack.
+	a.pageStack = append(a.pageStack, pageEntry{id: a.currentPage, page: a.activePage})
 	a.currentPage = pageID
 
+	// Create the new page.
 	switch pageID {
 	case PageServices:
-		a.servicesPage = NewServicesPage(a.cfg)
+		a.activePage = NewServicesPage(a.cfg)
 	case PageProviders:
-		a.editorPage = NewProvidersPage(a.cfg)
+		a.activePage = NewProvidersPage(a.cfg)
 	case PageSecurity:
-		a.editorPage = NewSecurityPage(a.cfg)
+		a.activePage = NewSecurityPage(a.cfg)
 	case PageFeatures:
-		a.editorPage = NewFeaturesPage(a.cfg)
+		a.activePage = NewFeaturesPage(a.cfg)
 	case PageVersion:
-		a.editorPage = NewVersionPage(a.cfg)
+		a.activePage = NewVersionPage(a.cfg)
 	case PageArtifacts:
-		a.editorPage = newConfigSectionPage(a.cfg.Artifacts, "Artifacts")
+		a.activePage = newConfigSectionPage(a.cfg.Artifacts, "Artifacts")
 	case PagePersistentStorage:
-		a.editorPage = newConfigSectionPage(a.cfg.PersistentStorage, "Persistent Storage")
+		a.activePage = newConfigSectionPage(a.cfg.PersistentStorage, "Persistent Storage")
 	case PageNotifications:
-		a.editorPage = newConfigSectionPage(a.cfg.Notifications, "Notifications")
+		a.activePage = newConfigSectionPage(a.cfg.Notifications, "Notifications")
 	case PageCI:
-		a.editorPage = newConfigSectionPage(a.cfg.CI, "CI")
+		a.activePage = newConfigSectionPage(a.cfg.CI, "CI")
 	case PageRepository:
-		a.editorPage = newConfigSectionPage(a.cfg.Repository, "Repository")
+		a.activePage = newConfigSectionPage(a.cfg.Repository, "Repository")
 	case PagePubsub:
-		a.editorPage = newConfigSectionPage(a.cfg.Pubsub, "Pub/Sub")
+		a.activePage = newConfigSectionPage(a.cfg.Pubsub, "Pub/Sub")
 	case PageCanary:
-		a.editorPage = newConfigSectionPage(a.cfg.Canary, "Canary")
+		a.activePage = newConfigSectionPage(a.cfg.Canary, "Canary")
 	case PageWebhook:
-		a.editorPage = newConfigSectionPage(a.cfg.Webhook, "Webhook")
+		a.activePage = newConfigSectionPage(a.cfg.Webhook, "Webhook")
 	case PageMetricStores:
-		a.editorPage = newConfigSectionPage(a.cfg.MetricStores, "Metric Stores")
+		a.activePage = newConfigSectionPage(a.cfg.MetricStores, "Metric Stores")
 	case PageDeploymentEnv:
-		a.editorPage = newConfigSectionPage(a.cfg.DeploymentEnvironment, "Deployment Environment")
+		a.activePage = newConfigSectionPage(a.cfg.DeploymentEnvironment, "Deployment Environment")
 	case PageSpinnaker:
-		a.editorPage = newConfigSectionPage(a.cfg.Spinnaker, "Spinnaker")
+		a.activePage = newConfigSectionPage(a.cfg.Spinnaker, "Spinnaker")
 	case PageImport:
-		a.importPage = NewImportPage("")
+		a.activePage = NewImportPage("")
 	case PageDeploy:
-		a.deployPage = NewDeployPage(nil)
+		a.activePage = NewDeployPage(nil)
 	}
 }
 
@@ -319,8 +300,10 @@ func newConfigSectionPage(data map[string]any, label string) page {
 
 func (a *App) goBack() {
 	if len(a.pageStack) > 0 {
-		a.currentPage = a.pageStack[len(a.pageStack)-1]
+		entry := a.pageStack[len(a.pageStack)-1]
 		a.pageStack = a.pageStack[:len(a.pageStack)-1]
+		a.currentPage = entry.id
+		a.activePage = entry.page
 	}
 }
 
@@ -350,24 +333,9 @@ func (a *App) View() string {
 		if a.homePage != nil {
 			b.WriteString(a.homePage.View())
 		}
-	case PageServices:
-		if a.servicesPage != nil {
-			b.WriteString(a.servicesPage.View())
-		}
-		case PageProviders, PageSecurity, PageFeatures, PageVersion,
-		PageArtifacts, PagePersistentStorage, PageNotifications, PageCI,
-		PageRepository, PagePubsub, PageCanary, PageWebhook,
-		PageMetricStores, PageDeploymentEnv, PageSpinnaker, PageEditor:
-		if a.editorPage != nil {
-			b.WriteString(a.editorPage.View())
-		}
-	case PageImport:
-		if a.importPage != nil {
-			b.WriteString(a.importPage.View())
-		}
-	case PageDeploy:
-		if a.deployPage != nil {
-			b.WriteString(a.deployPage.View())
+	default:
+		if a.activePage != nil {
+			b.WriteString(a.activePage.View())
 		}
 	}
 
