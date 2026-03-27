@@ -87,7 +87,7 @@ func TestEditorPageEditScalar(t *testing.T) {
 
 	// Enter to start editing.
 	ep.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	if !ep.editing {
+	if ep.mode != modeEdit {
 		t.Error("should be in editing mode")
 	}
 
@@ -98,7 +98,7 @@ func TestEditorPageEditScalar(t *testing.T) {
 	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n', 'e', 'w'}})
 	ep.Update(tea.KeyMsg{Type: tea.KeyEnter})
 
-	if ep.editing {
+	if ep.mode == modeEdit {
 		t.Error("should exit editing mode after enter")
 	}
 
@@ -206,7 +206,7 @@ func TestEditorPageEditViewShowsCursor(t *testing.T) {
 
 	// Enter editing mode.
 	ep.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	if !ep.editing {
+	if ep.mode != modeEdit {
 		t.Error("should be editing")
 	}
 	view := ep.View()
@@ -221,7 +221,7 @@ func TestEditorPageEscapeFromEditMode(t *testing.T) {
 
 	// Enter editing mode.
 	ep.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	if !ep.editing {
+	if ep.mode != modeEdit {
 		t.Error("should be in editing mode")
 	}
 
@@ -230,7 +230,7 @@ func TestEditorPageEscapeFromEditMode(t *testing.T) {
 
 	// Escape should cancel edit (exit editing mode without saving).
 	ep.Update(tea.KeyMsg{Type: tea.KeyEscape})
-	if ep.editing {
+	if ep.mode == modeEdit {
 		t.Error("should exit editing mode after escape")
 	}
 
@@ -259,8 +259,9 @@ func TestEditorPageSequenceWithNestedMap(t *testing.T) {
 	// Drill into the sequence.
 	ep.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	view := ep.View()
-	if !strings.Contains(view, "[0]") {
-		t.Error("should show sequence index")
+	// Should show the name field value instead of [0].
+	if !strings.Contains(view, "foo") {
+		t.Error("should show name value for named sequence items")
 	}
 	// The item is a mapping with 2 keys.
 	if !strings.Contains(view, "2 keys") {
