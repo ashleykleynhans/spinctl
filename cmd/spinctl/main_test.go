@@ -91,9 +91,9 @@ func TestImportCommandFlags(t *testing.T) {
 	if imp == nil {
 		t.Fatal("import subcommand not found")
 	}
-	halDirFlag := imp.Flags().Lookup("hal-dir")
+	halDirFlag := imp.InheritedFlags().Lookup("hal-dir")
 	if halDirFlag == nil {
-		t.Error("import should have --hal-dir flag")
+		t.Error("import should have --hal-dir flag (inherited from root)")
 	}
 }
 

@@ -24,6 +24,7 @@ var version = "dev"
 var (
 	cfgFile  string
 	lockFile string
+	halDir   string
 )
 
 func main() {
@@ -43,6 +44,7 @@ func rootCmd() *cobra.Command {
 	cmd.Version = version
 	cmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Path to config file (default: ~/.spinctl/config.yaml)")
 	cmd.PersistentFlags().StringVar(&lockFile, "lock", "", "Path to lock file (default: ~/.spinctl/.lock)")
+	cmd.PersistentFlags().StringVar(&halDir, "hal-dir", "", "Path to .hal directory (default: ~/.hal)")
 	cmd.AddCommand(deployCmd())
 	cmd.AddCommand(importCmd())
 	cmd.AddCommand(showCmd())
@@ -86,7 +88,7 @@ func runTUI(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	defer config.ReleaseLock(lock)
-	app := tui.NewApp(cfg, configPath, version)
+	app := tui.NewApp(cfg, configPath, halDir, version)
 	p := tea.NewProgram(app, tea.WithAltScreen())
 	_, err = p.Run()
 	return err
@@ -181,8 +183,6 @@ func deployCmd() *cobra.Command {
 }
 
 func importCmd() *cobra.Command {
-	var halDir string
-
 	cmd := &cobra.Command{
 		Use:   "import",
 		Short: "Import Halyard configuration",
@@ -218,7 +218,6 @@ func importCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&halDir, "hal-dir", "", "Path to .hal directory (default: ~/.hal)")
 	return cmd
 }
 

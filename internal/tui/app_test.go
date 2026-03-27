@@ -22,7 +22,7 @@ func findMenuCursor(hp *HomePage, target PageID) int {
 func TestAppInit(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Version = "1.35.0"
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 	if app.currentPage != PageHome {
 		t.Errorf("initial page = %v, want PageHome", app.currentPage)
 	}
@@ -30,7 +30,7 @@ func TestAppInit(t *testing.T) {
 
 func TestAppQuitOnQ(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
 	if cmd == nil {
 		t.Error("expected quit command")
@@ -40,7 +40,7 @@ func TestAppQuitOnQ(t *testing.T) {
 func TestAppViewContainsTitle(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Version = "1.35.0"
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 	view := app.View()
 	if !strings.Contains(view, "spinctl") {
 		t.Error("view should contain 'spinctl'")
@@ -49,7 +49,7 @@ func TestAppViewContainsTitle(t *testing.T) {
 
 func TestAppWindowResize(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 	app.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	if app.width != 120 || app.height != 40 {
 		t.Errorf("size = %dx%d, want 120x40", app.width, app.height)
@@ -58,7 +58,7 @@ func TestAppWindowResize(t *testing.T) {
 
 func TestAppQuitOnCtrlC(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
 	if cmd == nil {
 		t.Error("expected quit command for ctrl+c")
@@ -67,7 +67,7 @@ func TestAppQuitOnCtrlC(t *testing.T) {
 
 func TestAppViewDevVersion(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "0.0.3")
+	app := NewApp(cfg, "", "", "0.0.3")
 	view := app.View()
 	if !strings.Contains(view, "0.0.3") {
 		t.Error("view should contain spinctl version")
@@ -77,7 +77,7 @@ func TestAppViewDevVersion(t *testing.T) {
 func TestAppViewWithVersion(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Version = "1.35.0"
-	app := NewApp(cfg, "", "0.0.3")
+	app := NewApp(cfg, "", "", "0.0.3")
 	view := app.View()
 	if !strings.Contains(view, "0.0.3") {
 		t.Error("view should contain the version")
@@ -86,7 +86,7 @@ func TestAppViewWithVersion(t *testing.T) {
 
 func TestAppWindowResizeUpdatesStatusBar(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 	app.dirty = true
 	app.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
 	view := app.View()
@@ -97,7 +97,7 @@ func TestAppWindowResizeUpdatesStatusBar(t *testing.T) {
 
 func TestAppViewShowsStatusBar(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 	view := app.View()
 	if !strings.Contains(view, "quit") {
 		t.Error("view should contain status bar with quit hint")
@@ -107,7 +107,7 @@ func TestAppViewShowsStatusBar(t *testing.T) {
 func TestAppNavigateToServices(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Version = "1.35.0"
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	// Select first item (Services) on home page by pressing enter.
 	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -125,7 +125,7 @@ func TestAppNavigateToServices(t *testing.T) {
 
 func TestAppNavigateToImport(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	hp := app.homePage.(*HomePage)
 	hp.cursor = findMenuCursor(hp, PageImport)
@@ -141,7 +141,7 @@ func TestAppNavigateToImport(t *testing.T) {
 
 func TestAppNavigateToDeploy(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	hp := app.homePage.(*HomePage)
 	hp.cursor = findMenuCursor(hp, PageDeploy)
@@ -157,7 +157,7 @@ func TestAppNavigateToDeploy(t *testing.T) {
 
 func TestAppPageStackTracksHistory(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	if len(app.pageStack) != 0 {
 		t.Errorf("initial pageStack len = %d, want 0", len(app.pageStack))
@@ -175,7 +175,7 @@ func TestAppPageStackTracksHistory(t *testing.T) {
 
 func TestAppInitReturnsNil(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 	cmd := app.Init()
 	if cmd != nil {
 		t.Error("Init() should return nil")
@@ -184,7 +184,7 @@ func TestAppInitReturnsNil(t *testing.T) {
 
 func TestAppDelegatesNonKeyMessages(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 	// Send a non-key, non-window message; should not panic.
 	type customMsg struct{}
 	_, cmd := app.Update(customMsg{})
@@ -196,7 +196,7 @@ func TestAppDelegatesNonKeyMessages(t *testing.T) {
 func TestAppDelegatesToServicesPage(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Version = "1.35.0"
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	// Navigate to services page.
 	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -214,7 +214,7 @@ func TestAppDelegatesToServicesPage(t *testing.T) {
 
 func TestAppDelegatesToImportPage(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	// Navigate to import page.
 	hp := app.homePage.(*HomePage)
@@ -234,7 +234,7 @@ func TestAppDelegatesToImportPage(t *testing.T) {
 
 func TestAppDelegatesToDeployPage(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	// Navigate to deploy page.
 	hp := app.homePage.(*HomePage)
@@ -254,7 +254,7 @@ func TestAppDelegatesToDeployPage(t *testing.T) {
 
 func TestAppNavigateToEditor(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	// Navigate to Providers (index 1).
 	hp := app.homePage.(*HomePage)
@@ -267,7 +267,7 @@ func TestAppNavigateToEditor(t *testing.T) {
 
 func TestAppViewEditorPage(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	// Navigate to editor page (Providers).
 	hp := app.homePage.(*HomePage)
@@ -286,7 +286,7 @@ func TestAppSaveConfig(t *testing.T) {
 	configPath := tmpDir + "/config.yaml"
 	cfg := config.NewDefault()
 	cfg.Version = "1.35.0"
-	app := NewApp(cfg, configPath, "test")
+	app := NewApp(cfg, configPath, "", "test")
 	app.dirty = true
 
 	// Press 's' on home page to trigger save.
@@ -309,7 +309,7 @@ func TestAppSaveConfig(t *testing.T) {
 func TestAppGoBack(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Version = "1.35.0"
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	// Navigate to services.
 	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -326,7 +326,7 @@ func TestAppGoBack(t *testing.T) {
 
 func TestAppConfigChangedMsg(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	if app.dirty {
 		t.Error("should not be dirty initially")
@@ -342,7 +342,7 @@ func TestAppConfigChangedMsg(t *testing.T) {
 
 func TestAppConfigChangedMsgRevert(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	// Change config.
 	cfg.Version = "changed"
@@ -361,7 +361,7 @@ func TestAppConfigChangedMsgRevert(t *testing.T) {
 
 func TestAppQuitConfirmDirty(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 	app.dirty = true
 
 	app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
@@ -372,7 +372,7 @@ func TestAppQuitConfirmDirty(t *testing.T) {
 
 func TestAppQuitConfirmYes(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 	app.dirty = true
 	app.confirmQuit = true
 
@@ -384,7 +384,7 @@ func TestAppQuitConfirmYes(t *testing.T) {
 
 func TestAppQuitConfirmNo(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 	app.confirmQuit = true
 
 	app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
@@ -395,7 +395,7 @@ func TestAppQuitConfirmNo(t *testing.T) {
 
 func TestAppSaveResultSuccess(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 	app.dirty = true
 
 	app.Update(saveResultMsg{err: nil})
@@ -406,7 +406,7 @@ func TestAppSaveResultSuccess(t *testing.T) {
 
 func TestAppSaveResultError(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 	app.dirty = true
 
 	app.Update(saveResultMsg{err: fmt.Errorf("write failed")})
@@ -421,7 +421,7 @@ func TestAppSaveResultError(t *testing.T) {
 func TestAppNavigateToVersion(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Version = "1.35.0"
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	hp := app.homePage.(*HomePage)
 	hp.cursor = findMenuCursor(hp, PageVersion)
@@ -433,7 +433,7 @@ func TestAppNavigateToVersion(t *testing.T) {
 
 func TestAppNavigateToSecurity(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	hp := app.homePage.(*HomePage)
 	hp.cursor = findMenuCursor(hp, PageSecurity)
@@ -445,7 +445,7 @@ func TestAppNavigateToSecurity(t *testing.T) {
 
 func TestAppNavigateToFeatures(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	hp := app.homePage.(*HomePage)
 	hp.cursor = findMenuCursor(hp, PageFeatures)
@@ -457,7 +457,7 @@ func TestAppNavigateToFeatures(t *testing.T) {
 
 func TestAppConfirmQuitView(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 	app.confirmQuit = true
 
 	view := app.View()
@@ -481,7 +481,7 @@ func TestAppViewAllPages(t *testing.T) {
 	}
 	for _, tc := range pages {
 		t.Run(tc.name, func(t *testing.T) {
-			app := NewApp(cfg, "", "test")
+			app := NewApp(cfg, "", "", "test")
 			hp := app.homePage.(*HomePage)
 			hp.cursor = findMenuCursor(hp, tc.pageID)
 			app.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -496,7 +496,7 @@ func TestAppViewAllPages(t *testing.T) {
 func TestAppNavigateToArtifacts(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Artifacts = map[string]any{"github": map[string]any{"enabled": true}}
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	hp := app.homePage.(*HomePage)
 	hp.cursor = findMenuCursor(hp, PageArtifacts)
@@ -512,7 +512,7 @@ func TestAppNavigateToArtifacts(t *testing.T) {
 func TestAppNavigateToNotifications(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Notifications = map[string]any{"slack": map[string]any{"enabled": true}}
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	hp := app.homePage.(*HomePage)
 	hp.cursor = findMenuCursor(hp, PageNotifications)
@@ -528,7 +528,7 @@ func TestAppNavigateToNotifications(t *testing.T) {
 func TestAppNavigateToCI(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.CI = map[string]any{"jenkins": map[string]any{"enabled": true}}
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	hp := app.homePage.(*HomePage)
 	hp.cursor = findMenuCursor(hp, PageCI)
@@ -544,7 +544,7 @@ func TestAppNavigateToCI(t *testing.T) {
 func TestAppNavigateToPersistentStorage(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.PersistentStorage = map[string]any{"s3": map[string]any{"enabled": true}}
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	hp := app.homePage.(*HomePage)
 	hp.cursor = findMenuCursor(hp, PagePersistentStorage)
@@ -560,7 +560,7 @@ func TestAppNavigateToPersistentStorage(t *testing.T) {
 func TestAppNavigateToCanary(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Canary = map[string]any{"enabled": true}
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	hp := app.homePage.(*HomePage)
 	hp.cursor = findMenuCursor(hp, PageCanary)
@@ -596,7 +596,7 @@ func TestNewConfigSectionPageEmpty(t *testing.T) {
 func TestAppNavigateToRepository(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Repository = map[string]any{"artifactory": map[string]any{"enabled": true}}
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	hp := app.homePage.(*HomePage)
 	hp.cursor = findMenuCursor(hp, PageRepository)
@@ -612,7 +612,7 @@ func TestAppNavigateToRepository(t *testing.T) {
 func TestAppNavigateToWebhook(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Webhook = map[string]any{"trust": map[string]any{"enabled": true}}
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	hp := app.homePage.(*HomePage)
 	hp.cursor = findMenuCursor(hp, PageWebhook)
@@ -628,7 +628,7 @@ func TestAppNavigateToWebhook(t *testing.T) {
 func TestAppNavigateToMetricStores(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.MetricStores = map[string]any{"datadog": map[string]any{"enabled": true}}
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	hp := app.homePage.(*HomePage)
 	hp.cursor = findMenuCursor(hp, PageMetricStores)
@@ -644,7 +644,7 @@ func TestAppNavigateToMetricStores(t *testing.T) {
 func TestAppNavigateToDeploymentEnv(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.DeploymentEnvironment = map[string]any{"type": "distributed"}
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	hp := app.homePage.(*HomePage)
 	hp.cursor = findMenuCursor(hp, PageDeploymentEnv)
@@ -660,7 +660,7 @@ func TestAppNavigateToDeploymentEnv(t *testing.T) {
 func TestAppNavigateToSpinnaker(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Spinnaker = map[string]any{"extensibility": map[string]any{"plugins": map[string]any{}}}
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	// PageSpinnaker is not in the home menu, so navigate directly.
 	app.navigateTo(PageSpinnaker)
@@ -675,7 +675,7 @@ func TestAppNavigateToSpinnaker(t *testing.T) {
 func TestAppNavigateToPubsub(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Pubsub = map[string]any{"google": map[string]any{"enabled": true}}
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	hp := app.homePage.(*HomePage)
 	hp.cursor = findMenuCursor(hp, PagePubsub)
@@ -690,7 +690,7 @@ func TestAppNavigateToPubsub(t *testing.T) {
 
 func TestAppEscOnHomeDoesNothing(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "", "test")
+	app := NewApp(cfg, "", "", "test")
 
 	app.Update(tea.KeyMsg{Type: tea.KeyEscape})
 	if app.currentPage != PageHome {

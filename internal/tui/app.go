@@ -134,6 +134,7 @@ type pageEntry struct {
 type App struct {
 	cfg            *config.SpinctlConfig
 	configPath     string
+	halDir         string
 	version        string
 	savedSnapshot  string // YAML snapshot of last saved state
 	currentPage    PageID
@@ -149,10 +150,11 @@ type App struct {
 }
 
 // NewApp creates a new App with the home page active.
-func NewApp(cfg *config.SpinctlConfig, configPath string, version string) *App {
+func NewApp(cfg *config.SpinctlConfig, configPath string, halDir string, version string) *App {
 	app := &App{
 		cfg:         cfg,
 		configPath:  configPath,
+		halDir:      halDir,
 		version:     version,
 		currentPage: PageHome,
 		width:       80,
@@ -341,7 +343,7 @@ func (a *App) navigateTo(pageID PageID) {
 	case PageSpinnaker:
 		a.activePage = newConfigSectionPage(a.cfg.Spinnaker, "Spinnaker")
 	case PageImport:
-		a.activePage = NewImportPage("")
+		a.activePage = NewImportPage(a.halDir)
 	case PageDeploy:
 		a.activePage = NewDeployPage(nil)
 	}
