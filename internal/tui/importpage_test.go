@@ -133,3 +133,56 @@ func TestImportPageNonKeyMessage(t *testing.T) {
 		t.Error("non-key message should return nil cmd")
 	}
 }
+
+func TestImportPageEditPath(t *testing.T) {
+	ip := NewImportPage("/tmp/hal")
+
+	// Press e to enter edit mode.
+	ip.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'e'}})
+	if !ip.editing {
+		t.Fatal("should be in editing mode after 'e'")
+	}
+
+	view := ip.View()
+	if !strings.Contains(view, "confirm path") {
+		t.Error("editing view should show 'confirm path'")
+	}
+
+	// Clear and type new path.
+	for range len(ip.editBuffer) {
+		ip.Update(tea.KeyMsg{Type: tea.KeyBackspace})
+	}
+	ip.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/new/path")})
+	ip.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	if ip.editing {
+		t.Error("should exit editing after enter")
+	}
+	if ip.halDir != "/new/path" {
+		t.Errorf("halDir = %q, want /new/path", ip.halDir)
+	}
+}
+
+func TestImportPageEditPathCancel(t *testing.T) {
+	ip := NewImportPage("/tmp/hal")
+	ip.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'e'}})
+	ip.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	ip.Update(tea.KeyMsg{Type: tea.KeyEscape})
+
+	if ip.editing {
+		t.Error("should exit editing after esc")
+	}
+	if ip.halDir != "/tmp/hal" {
+		t.Errorf("halDir = %q, want /tmp/hal (unchanged)", ip.halDir)
+	}
+}
+
+func TestImportPageWithExplicitPath(t *testing.T) {
+	ip := NewImportPage("/custom/hal")
+	if ip.halDir != "/custom/hal" {
+		t.Errorf("halDir = %q, want /custom/hal", ip.halDir)
+	}
+	if ip.editing {
+		t.Error("should not start in editing mode when path is provided")
+	}
+}
