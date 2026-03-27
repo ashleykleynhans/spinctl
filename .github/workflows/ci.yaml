@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - "**"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test ./... -v -race -count=1
+
+      - name: Run coverage
+        run: |
+          go test ./... -coverprofile=coverage.out -covermode=atomic
+          go tool cover -func=coverage.out | tail -1
+
+      - name: Verify build
+        run: go build -trimpath -o bin/spinctl ./cmd/spinctl
+
+      - name: Run vet
+        run: go vet ./...

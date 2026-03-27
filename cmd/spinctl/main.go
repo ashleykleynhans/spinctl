@@ -19,6 +19,8 @@ import (
 	"github.com/spinnaker/spinctl/internal/tui"
 )
 
+var version = "dev"
+
 func main() {
 	if err := rootCmd().Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -33,6 +35,7 @@ func rootCmd() *cobra.Command {
 		Long:  "spinctl is a terminal UI tool for managing Spinnaker configuration and deployment.",
 		RunE:  runTUI,
 	}
+	cmd.Version = version
 	cmd.AddCommand(deployCmd())
 	cmd.AddCommand(importCmd())
 	cmd.AddCommand(showCmd())
