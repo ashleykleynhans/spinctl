@@ -74,6 +74,14 @@ func Import(opts ImportOptions) (*ImportResult, error) {
 		return nil, fmt.Errorf("mapping config: %w", err)
 	}
 
+	// Import per-service settings from .hal/<deployment>/service-settings/
+	serviceSettingsDir := filepath.Join(opts.HalDir, deploymentName, "service-settings")
+	importServiceSettings(cfg, serviceSettingsDir)
+
+	// Import per-service profiles from .hal/<deployment>/profiles/
+	profilesDir := filepath.Join(opts.HalDir, deploymentName, "profiles")
+	importProfiles(cfg, profilesDir)
+
 	// Save the config.
 	if err := config.SaveToFile(cfg, opts.OutputPath); err != nil {
 		return nil, fmt.Errorf("saving config: %w", err)
