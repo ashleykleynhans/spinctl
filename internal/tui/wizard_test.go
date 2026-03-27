@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/spinnaker/spinctl/internal/config"
+	"github.com/spinnaker/spinctl/internal/halimport"
 	"github.com/spinnaker/spinctl/internal/model"
 )
 
@@ -728,5 +729,221 @@ func TestWizardViewDoneNoStorageNoProviders(t *testing.T) {
 	view := w.View()
 	if !strings.Contains(view, "none (skipped)") {
 		t.Error("done view should show 'none (skipped)' when no providers/storage")
+	}
+}
+
+func TestWizardWelcomeNavigation(t *testing.T) {
+	w := newTestWizard()
+	w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	if w.cursor != 0 {
+		t.Errorf("cursor = %d, want 0 (can't go above 0)", w.cursor)
+	}
+	w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	if w.cursor != 1 {
+		t.Errorf("cursor = %d, want 1", w.cursor)
+	}
+}
+
+func TestWizardImportPathEditing(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardImportPath
+	w.editing = true
+	w.editBuffer = ""
+
+	// Type a path.
+	w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/tmp")})
+	if w.editBuffer != "/tmp" {
+		t.Errorf("editBuffer = %q, want /tmp", w.editBuffer)
+	}
+
+	// Backspace.
+	w.Update(tea.KeyMsg{Type: tea.KeyBackspace})
+	if w.editBuffer != "/tm" {
+		t.Errorf("editBuffer = %q, want /tm", w.editBuffer)
+	}
+}
+
+func TestWizardImportPathEscReturnsToWelcome(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardImportPath
+	w.editing = true
+	w.editBuffer = "/some/path"
+
+	w.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	if w.step != wizardWelcome {
+		t.Errorf("step = %v, want wizardWelcome", w.step)
+	}
+	if w.editing {
+		t.Error("should not be editing after esc")
+	}
+}
+
+func TestWizardImportPathEmptyEnter(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardImportPath
+	w.editing = true
+	w.editBuffer = ""
+
+	w.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	// Should stay on same step — empty path not allowed.
+	if w.step != wizardImportPath {
+		t.Errorf("step = %v, want wizardImportPath (empty path)", w.step)
+	}
+}
+
+func TestWizardImportPathEnterStartsImport(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardImportPath
+	w.editing = true
+	w.editBuffer = "/tmp/fake-hal"
+
+	_, cmd := w.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if w.step != wizardImporting {
+		t.Errorf("step = %v, want wizardImporting", w.step)
+	}
+	if cmd == nil {
+		t.Error("should return import command")
+	}
+}
+
+func TestWizardImportDoneSuccess(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardImporting
+
+	importedCfg := config.NewDefault()
+	importedCfg.Version = "2025.3.2"
+
+	w.Update(importDoneMsg{
+		result: &halimport.ImportResult{
+			Config: importedCfg,
+		},
+	})
+	if w.step != wizardDone {
+		t.Errorf("step = %v, want wizardDone", w.step)
+	}
+	if w.cfg.Version != "2025.3.2" {
+		t.Errorf("version = %q, want 2025.3.2", w.cfg.Version)
+	}
+}
+
+func TestWizardImportDoneErrorNotFound(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardImporting
+	w.editBuffer = "/bad/path"
+
+	w.Update(importDoneMsg{err: errors.New("no such file or directory")})
+	if w.step != wizardImportPath {
+		t.Errorf("step = %v, want wizardImportPath", w.step)
+	}
+	if !strings.Contains(w.validateErr, "Directory not found") {
+		t.Errorf("validateErr = %q, want 'Directory not found'", w.validateErr)
+	}
+}
+
+func TestWizardImportDoneErrorPermission(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardImporting
+	w.editBuffer = "/root/hal"
+
+	w.Update(importDoneMsg{err: errors.New("permission denied")})
+	if !strings.Contains(w.validateErr, "Permission denied") {
+		t.Errorf("validateErr = %q, want 'Permission denied'", w.validateErr)
+	}
+}
+
+func TestWizardImportDoneErrorOther(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardImporting
+	w.editBuffer = "/tmp/hal"
+
+	w.Update(importDoneMsg{err: errors.New("yaml parse error")})
+	if !strings.Contains(w.validateErr, "Import failed") {
+		t.Errorf("validateErr = %q, want 'Import failed'", w.validateErr)
+	}
+}
+
+func TestWizardIgnoresKeysDuringImport(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardImporting
+
+	w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	if w.step != wizardImporting {
+		t.Error("should ignore keys during import")
+	}
+}
+
+func TestWizardVersionEscReturnsToWelcome(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardVersion
+	w.editing = true
+	w.editBuffer = "1.0"
+
+	w.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	if w.step != wizardWelcome {
+		t.Errorf("step = %v, want wizardWelcome", w.step)
+	}
+}
+
+func TestWizardViewImportPath(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardImportPath
+	w.editing = true
+	w.editBuffer = "/tmp/.hal"
+
+	view := w.View()
+	if !strings.Contains(view, "Halyard config path") {
+		t.Error("should show 'Halyard config path'")
+	}
+	if !strings.Contains(view, "/tmp/.hal") {
+		t.Error("should show current path")
+	}
+}
+
+func TestWizardViewImportPathWithError(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardImportPath
+	w.editing = true
+	w.editBuffer = "/bad"
+	w.validateErr = "Directory not found: /bad"
+
+	view := w.View()
+	if !strings.Contains(view, "Directory not found") {
+		t.Error("should show error")
+	}
+}
+
+func TestWizardViewImportPathWithDetected(t *testing.T) {
+	w := NewWizardPage(config.NewDefault(), "/home/user/.hal")
+	w.step = wizardImportPath
+	w.editing = true
+	w.editBuffer = "/home/user/.hal"
+
+	view := w.View()
+	if !strings.Contains(view, "Detected") {
+		t.Error("should show detected path hint")
+	}
+}
+
+func TestWizardViewImporting(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardImporting
+	w.editBuffer = "/tmp/.hal"
+
+	view := w.View()
+	if !strings.Contains(view, "Importing") {
+		t.Error("should show importing message")
+	}
+}
+
+func TestWizardUpdateImportPath(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardImportPath
+
+	result, cmd := w.updateImportPath(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	if result != w {
+		t.Error("should return same page")
+	}
+	if cmd != nil {
+		t.Error("should return nil cmd")
 	}
 }
