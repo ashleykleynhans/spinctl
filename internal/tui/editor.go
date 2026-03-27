@@ -105,9 +105,9 @@ func (e *EditorPage) sequenceItems() []editorItem {
 			item.value = node.Value
 			item.isScalar = true
 		case yaml.MappingNode:
-			// Try to find a "name" key to use as label.
-			if name := findMapValue(node, "name"); name != "" {
-				item.key = name
+			// Try common identifier keys to use as label.
+			if label := findItemLabel(node); label != "" {
+				item.key = label
 			}
 			item.value = fmt.Sprintf("{%d keys}", len(node.Content)/2)
 		case yaml.SequenceNode:
@@ -128,6 +128,28 @@ func isBoolNode(node *yaml.Node) bool {
 	}
 	v := strings.ToLower(node.Value)
 	return v == "true" || v == "false"
+}
+
+// findItemLabel tries common identifier keys to find a human-readable label
+// for a mapping node in a list.
+func findItemLabel(node *yaml.Node) string {
+	if node.Kind != yaml.MappingNode {
+		return ""
+	}
+	// Try these keys in order of preference.
+	labelKeys := []string{"name", "accountName", "id", "title", "key", "region", "label"}
+	for _, key := range labelKeys {
+		if val := findMapValue(node, key); val != "" {
+			return val
+		}
+	}
+	// Fallback: use the first scalar value in the map.
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if node.Content[i+1].Kind == yaml.ScalarNode && node.Content[i+1].Value != "" {
+			return node.Content[i+1].Value
+		}
+	}
+	return ""
 }
 
 // findMapValue returns the scalar value for a given key in a mapping node.
