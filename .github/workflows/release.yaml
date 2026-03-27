@@ -72,11 +72,23 @@ jobs:
           tar czf "${ARCHIVE}" spinctl LICENSE README.md
           echo "ARCHIVE=${ARCHIVE}" >> $GITHUB_ENV
 
-      - name: Upload artifact
+      - name: Create zip
+        run: |
+          ZIP="spinctl-${GITHUB_REF_NAME#v}-${{ matrix.goos }}-${{ matrix.goarch }}.zip"
+          zip "${ZIP}" spinctl LICENSE README.md
+          echo "ZIP=${ZIP}" >> $GITHUB_ENV
+
+      - name: Upload tarball
         uses: actions/upload-artifact@v4
         with:
-          name: spinctl-${{ matrix.goos }}-${{ matrix.goarch }}
+          name: spinctl-tar-${{ matrix.goos }}-${{ matrix.goarch }}
           path: ${{ env.ARCHIVE }}
+
+      - name: Upload zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: spinctl-zip-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ${{ env.ZIP }}
 
   package-deb:
     name: Package .deb (${{ matrix.goarch }})
@@ -250,7 +262,7 @@ jobs:
       - name: Collect release assets
         run: |
           mkdir -p release
-          find artifacts -type f \( -name "*.tar.gz" -o -name "*.deb" -o -name "*.rpm" \) \
+          find artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.deb" -o -name "*.rpm" \) \
             -exec cp {} release/ \;
           ls -la release/
 
