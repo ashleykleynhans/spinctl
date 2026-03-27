@@ -90,16 +90,12 @@ func (e *EditorPage) mapItems() []editorItem {
 					status = " ON"
 				}
 				item.value = fmt.Sprintf("[%s] {%d keys}", status, keyCount)
+			} else if active := e.isActiveByTypeSelector(keyNode.Value); active {
+				item.value = fmt.Sprintf("[ ON] {%d keys}", keyCount)
 			} else if keyCount == 0 {
-				item.value = "(empty)"
+				item.value = "[OFF]"
 			} else {
-				// Check if this item's name matches a type-selector sibling
-				// (e.g., persistentStoreType: s3 marks s3 as active).
-				if active := e.isActiveByTypeSelector(keyNode.Value); active {
-					item.value = fmt.Sprintf("[active] {%d keys}", keyCount)
-				} else {
-					item.value = fmt.Sprintf("{%d keys}", keyCount)
-				}
+				item.value = fmt.Sprintf("{%d keys}", keyCount)
 			}
 		case yaml.SequenceNode:
 			item.value = fmt.Sprintf("[%d items]", len(valNode.Content))
