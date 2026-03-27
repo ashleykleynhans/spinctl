@@ -715,3 +715,85 @@ func TestDeleteFromEmptyDoesNothing(t *testing.T) {
 		t.Errorf("items count = %d, want 0", len(items))
 	}
 }
+
+func TestHasTypeSelector(t *testing.T) {
+	node := makeTestNode("persistentStoreType: s3\ns3:\n  bucket: my-bucket")
+	ep := NewEditorPage(&node, "config")
+	if !ep.hasTypeSelector() {
+		t.Error("expected hasTypeSelector to return true for node with *Type key")
+	}
+}
+
+func TestHasTypeSelectorFalse(t *testing.T) {
+	node := makeTestNode("name: test\nport: 8080")
+	ep := NewEditorPage(&node, "config")
+	if ep.hasTypeSelector() {
+		t.Error("expected hasTypeSelector to return false for node without *Type key")
+	}
+}
+
+func TestIsActiveByTypeSelectorNoMatch(t *testing.T) {
+	node := makeTestNode("persistentStoreType: s3\ngcs:\n  bucket: my-bucket")
+	ep := NewEditorPage(&node, "config")
+	if ep.isActiveByTypeSelector("gcs") {
+		t.Error("gcs should not be active when persistentStoreType is s3")
+	}
+}
+
+func TestSequenceItemsWithTypeSelector(t *testing.T) {
+	node := makeTestNode("- name: alpha\n  enabled: true\n- name: beta\n  enabled: false")
+	ep := NewEditorPage(&node, "config")
+	items := ep.sequenceItems()
+	if len(items) != 2 {
+		t.Fatalf("items count = %d, want 2", len(items))
+	}
+	if !strings.Contains(items[0].value, " ON") {
+		t.Errorf("first item value = %q, should contain ON", items[0].value)
+	}
+	if !strings.Contains(items[1].value, "OFF") {
+		t.Errorf("second item value = %q, should contain OFF", items[1].value)
+	}
+}
+
+func TestMapItemsEnabledSortsToTop(t *testing.T) {
+	node := makeTestNode("name: test\nenabled: true\nport: 8080")
+	ep := NewEditorPage(&node, "config")
+	items := ep.items()
+	if len(items) < 1 {
+		t.Fatal("expected items")
+	}
+	if items[0].key != "enabled" {
+		t.Errorf("first item key = %q, want 'enabled' (should sort to top)", items[0].key)
+	}
+}
+
+func TestMapItemsTypeSelectorInactive(t *testing.T) {
+	node := makeTestNode("persistentStoreType: s3\ns3:\n  bucket: my-bucket\ngcs:\n  bucket: other")
+	ep := NewEditorPage(&node, "config")
+	items := ep.items()
+	// Find the gcs item.
+	for _, item := range items {
+		if item.key == "gcs" {
+			if !strings.Contains(item.value, "OFF") {
+				t.Errorf("inactive type selector sibling should show [OFF], got %q", item.value)
+			}
+			return
+		}
+	}
+	t.Error("gcs item not found")
+}
+
+func TestSpacebarOnNonBool(t *testing.T) {
+	node := makeTestNode("name: hello")
+	ep := NewEditorPage(&node, "config")
+
+	// Press spacebar on a non-boolean scalar; should do nothing.
+	_, cmd := ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}})
+	if cmd != nil {
+		t.Error("spacebar on non-boolean should return nil cmd")
+	}
+	items := ep.items()
+	if items[0].value != "hello" {
+		t.Errorf("value should remain 'hello', got %q", items[0].value)
+	}
+}

@@ -5,7 +5,10 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"gopkg.in/yaml.v3"
+
 	"github.com/spinnaker/spinctl/internal/config"
+	"github.com/spinnaker/spinctl/internal/model"
 )
 
 func TestSecurityPageView(t *testing.T) {
@@ -98,5 +101,85 @@ func TestSecurityPageNilEditorUpdate(t *testing.T) {
 	}
 	if cmd != nil {
 		t.Error("should return nil cmd")
+	}
+}
+
+func makeGateWithSettings(yamlStr string) config.ServiceConfig {
+	var node yaml.Node
+	yaml.Unmarshal([]byte(yamlStr), &node)
+	if node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
+		return config.ServiceConfig{Enabled: true, Host: "localhost", Port: 8084, Settings: *node.Content[0]}
+	}
+	return config.ServiceConfig{Enabled: true, Host: "localhost", Port: 8084}
+}
+
+func TestNewSecurityPageWithOAuth2(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.Services[model.Gate] = makeGateWithSettings(`
+spring:
+  security:
+    oauth2:
+      client:
+        clientId: my-client
+`)
+	sp := NewSecurityPage(cfg)
+	view := sp.View()
+	if !strings.Contains(view, "oauth2") {
+		t.Error("security page should contain 'oauth2' from gate spring.security settings")
+	}
+}
+
+func TestNewSecurityPageWithSSL(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.Services[model.Gate] = makeGateWithSettings(`
+server:
+  ssl:
+    enabled: true
+    keyStore: /path/to/keystore
+`)
+	sp := NewSecurityPage(cfg)
+	view := sp.View()
+	if !strings.Contains(view, "ssl") {
+		t.Error("security page should contain 'ssl' from gate server.ssl settings")
+	}
+}
+
+func TestExtractNestedMap(t *testing.T) {
+	var node yaml.Node
+	yaml.Unmarshal([]byte("spring:\n  security:\n    oauth2:\n      clientId: abc"), &node)
+	result := extractNestedMap(&node, "spring", "security")
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	// The result should be a mapping node containing "oauth2".
+	if result.Kind != yaml.MappingNode {
+		t.Errorf("expected MappingNode, got kind=%d", result.Kind)
+	}
+	found := false
+	for i := 0; i+1 < len(result.Content); i += 2 {
+		if result.Content[i].Value == "oauth2" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected to find 'oauth2' key in result")
+	}
+}
+
+func TestExtractNestedMapMissing(t *testing.T) {
+	var node yaml.Node
+	yaml.Unmarshal([]byte("spring:\n  boot:\n    version: 3"), &node)
+	result := extractNestedMap(&node, "spring", "security")
+	if result != nil {
+		t.Error("expected nil for missing key path")
+	}
+}
+
+func TestExtractNestedMapNonMapping(t *testing.T) {
+	// Create a scalar node, not a mapping.
+	node := &yaml.Node{Kind: yaml.ScalarNode, Value: "hello"}
+	result := extractNestedMap(node, "spring")
+	if result != nil {
+		t.Error("expected nil for non-mapping node")
 	}
 }

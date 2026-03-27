@@ -592,3 +592,108 @@ func TestNewConfigSectionPageEmpty(t *testing.T) {
 		t.Errorf("empty section page view = %q, should contain '(empty)'", view)
 	}
 }
+
+func TestAppNavigateToRepository(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.Repository = map[string]any{"artifactory": map[string]any{"enabled": true}}
+	app := NewApp(cfg, "", "test")
+
+	hp := app.homePage.(*HomePage)
+	hp.cursor = findMenuCursor(hp, PageRepository)
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if app.currentPage != PageRepository {
+		t.Errorf("currentPage = %v, want PageRepository", app.currentPage)
+	}
+	if app.editorPage == nil {
+		t.Error("editor page should be created for Repository")
+	}
+}
+
+func TestAppNavigateToWebhook(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.Webhook = map[string]any{"trust": map[string]any{"enabled": true}}
+	app := NewApp(cfg, "", "test")
+
+	hp := app.homePage.(*HomePage)
+	hp.cursor = findMenuCursor(hp, PageWebhook)
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if app.currentPage != PageWebhook {
+		t.Errorf("currentPage = %v, want PageWebhook", app.currentPage)
+	}
+	if app.editorPage == nil {
+		t.Error("editor page should be created for Webhook")
+	}
+}
+
+func TestAppNavigateToMetricStores(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.MetricStores = map[string]any{"datadog": map[string]any{"enabled": true}}
+	app := NewApp(cfg, "", "test")
+
+	hp := app.homePage.(*HomePage)
+	hp.cursor = findMenuCursor(hp, PageMetricStores)
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if app.currentPage != PageMetricStores {
+		t.Errorf("currentPage = %v, want PageMetricStores", app.currentPage)
+	}
+	if app.editorPage == nil {
+		t.Error("editor page should be created for MetricStores")
+	}
+}
+
+func TestAppNavigateToDeploymentEnv(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.DeploymentEnvironment = map[string]any{"type": "distributed"}
+	app := NewApp(cfg, "", "test")
+
+	hp := app.homePage.(*HomePage)
+	hp.cursor = findMenuCursor(hp, PageDeploymentEnv)
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if app.currentPage != PageDeploymentEnv {
+		t.Errorf("currentPage = %v, want PageDeploymentEnv", app.currentPage)
+	}
+	if app.editorPage == nil {
+		t.Error("editor page should be created for DeploymentEnv")
+	}
+}
+
+func TestAppNavigateToSpinnaker(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.Spinnaker = map[string]any{"extensibility": map[string]any{"plugins": map[string]any{}}}
+	app := NewApp(cfg, "", "test")
+
+	// PageSpinnaker is not in the home menu, so navigate directly.
+	app.navigateTo(PageSpinnaker)
+	if app.currentPage != PageSpinnaker {
+		t.Errorf("currentPage = %v, want PageSpinnaker", app.currentPage)
+	}
+	if app.editorPage == nil {
+		t.Error("editor page should be created for Spinnaker")
+	}
+}
+
+func TestAppNavigateToPubsub(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.Pubsub = map[string]any{"google": map[string]any{"enabled": true}}
+	app := NewApp(cfg, "", "test")
+
+	hp := app.homePage.(*HomePage)
+	hp.cursor = findMenuCursor(hp, PagePubsub)
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if app.currentPage != PagePubsub {
+		t.Errorf("currentPage = %v, want PagePubsub", app.currentPage)
+	}
+	if app.editorPage == nil {
+		t.Error("editor page should be created for Pubsub")
+	}
+}
+
+func TestAppEscOnHomeDoesNothing(t *testing.T) {
+	cfg := config.NewDefault()
+	app := NewApp(cfg, "", "test")
+
+	app.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	if app.currentPage != PageHome {
+		t.Errorf("esc on home should stay on home, got %v", app.currentPage)
+	}
+}
