@@ -82,15 +82,24 @@ func (e *EditorPage) mapItems() []editorItem {
 			item.value = valNode.Value
 			item.isScalar = true
 		case yaml.MappingNode:
+			keyCount := len(valNode.Content) / 2
 			// Show enabled status if the map has an "enabled" key.
 			if enabled := findMapValue(valNode, "enabled"); enabled != "" {
 				status := "OFF"
 				if enabled == "true" {
 					status = " ON"
 				}
-				item.value = fmt.Sprintf("[%s] {%d keys}", status, len(valNode.Content)/2)
+				item.value = fmt.Sprintf("[%s] {%d keys}", status, keyCount)
+			} else if keyCount == 0 {
+				item.value = "(empty)"
 			} else {
-				item.value = fmt.Sprintf("{%d keys}", len(valNode.Content)/2)
+				// Check if this item's name matches a type-selector sibling
+				// (e.g., persistentStoreType: s3 marks s3 as active).
+				if active := e.isActiveByTypeSelector(keyNode.Value); active {
+					item.value = fmt.Sprintf("[active] {%d keys}", keyCount)
+				} else {
+					item.value = fmt.Sprintf("{%d keys}", keyCount)
+				}
 			}
 		case yaml.SequenceNode:
 			item.value = fmt.Sprintf("[%d items]", len(valNode.Content))
@@ -118,14 +127,17 @@ func (e *EditorPage) sequenceItems() []editorItem {
 			if label := findItemLabel(node); label != "" {
 				item.key = label
 			}
+			keyCount := len(node.Content) / 2
 			if enabled := findMapValue(node, "enabled"); enabled != "" {
 				status := "OFF"
 				if enabled == "true" {
 					status = " ON"
 				}
-				item.value = fmt.Sprintf("[%s] {%d keys}", status, len(node.Content)/2)
+				item.value = fmt.Sprintf("[%s] {%d keys}", status, keyCount)
+			} else if keyCount == 0 {
+				item.value = "(empty)"
 			} else {
-				item.value = fmt.Sprintf("{%d keys}", len(node.Content)/2)
+				item.value = fmt.Sprintf("{%d keys}", keyCount)
 			}
 		case yaml.SequenceNode:
 			item.value = fmt.Sprintf("[%d items]", len(node.Content))
@@ -167,6 +179,24 @@ func findItemLabel(node *yaml.Node) string {
 		}
 	}
 	return ""
+}
+
+// isActiveByTypeSelector checks if a key's name matches a type-selector value
+// in the current mapping node. For example, if the current node has
+// "persistentStoreType: s3", then the "s3" entry is considered active.
+func (e *EditorPage) isActiveByTypeSelector(name string) bool {
+	if e.current == nil || e.current.Kind != yaml.MappingNode {
+		return false
+	}
+	// Look for keys ending in "Type" whose scalar value matches the name.
+	for i := 0; i+1 < len(e.current.Content); i += 2 {
+		key := e.current.Content[i].Value
+		val := e.current.Content[i+1]
+		if val.Kind == yaml.ScalarNode && strings.HasSuffix(key, "Type") && val.Value == name {
+			return true
+		}
+	}
+	return false
 }
 
 // findMapValue returns the scalar value for a given key in a mapping node.
