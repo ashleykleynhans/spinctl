@@ -22,6 +22,7 @@ type HomePage struct {
 	items    []menuItem
 	cursor   int
 	selected PageID
+	width    int
 }
 
 // NewHomePage creates a home page with menu items derived from the config.
@@ -100,7 +101,12 @@ func (h *HomePage) View() string {
 	b.WriteString("\n")
 	for i, item := range h.items {
 		if item.separator {
-			b.WriteString("  " + menuSeparatorStyle.Render("────────────────────────────────────") + "\n")
+			sepWidth := h.width - 4
+			if sepWidth < 10 {
+				sepWidth = 36
+			}
+			dots := strings.Repeat("·", sepWidth)
+			b.WriteString("  " + menuSeparatorStyle.Render(dots) + "\n")
 			continue
 		}
 		selected := i == h.cursor

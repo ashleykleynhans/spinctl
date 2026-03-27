@@ -177,6 +177,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.height = msg.Height
 		a.statusBar = components.NewStatusBar(a.width)
 		a.statusBar.SetModified(a.dirty)
+		if hp, ok := a.homePage.(*HomePage); ok {
+			hp.width = a.width
+		}
 		return a, nil
 
 	case importDoneMsg:

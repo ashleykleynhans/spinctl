@@ -128,7 +128,7 @@ func TestHomePageViewShowsSeparator(t *testing.T) {
 	cfg := config.NewDefault()
 	hp := NewHomePage(cfg)
 	view := hp.View()
-	if !strings.Contains(view, "\u2500\u2500\u2500") {
+	if !strings.Contains(view, "·") {
 		t.Error("home page should show separator")
 	}
 }
