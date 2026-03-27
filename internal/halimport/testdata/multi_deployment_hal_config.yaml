@@ -1,0 +1,19 @@
+halyardVersion: "1.56.0"
+currentDeployment: staging
+deploymentConfigurations:
+  - name: default
+    version: "1.34.0"
+    providers:
+      kubernetes:
+        enabled: true
+        accounts:
+          - name: dev
+            context: dev-context
+  - name: staging
+    version: "1.35.0"
+    providers:
+      kubernetes:
+        enabled: true
+        accounts:
+          - name: staging
+            context: staging-context

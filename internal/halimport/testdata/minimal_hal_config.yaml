@@ -1,0 +1,5 @@
+halyardVersion: "1.56.0"
+currentDeployment: default
+deploymentConfigurations:
+  - name: default
+    version: "1.35.0"

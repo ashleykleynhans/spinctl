@@ -1,0 +1,32 @@
+halyardVersion: "1.56.0"
+currentDeployment: default
+deploymentConfigurations:
+  - name: default
+    version: "1.35.0"
+    providers:
+      kubernetes:
+        enabled: true
+        accounts:
+          - name: prod
+            context: prod-context
+            kubeconfigFile: /home/spinnaker/.kube/config
+      aws:
+        enabled: false
+    deploymentEnvironment:
+      type: Distributed
+      accountName: prod
+    security:
+      authn:
+        enabled: false
+      authz:
+        enabled: false
+    features:
+      artifacts: true
+      pipelineTemplates: false
+    notifications:
+      slack:
+        enabled: true
+        botName: spinnaker
+    metricStores:
+      prometheus:
+        enabled: false
