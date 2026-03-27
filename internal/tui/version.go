@@ -32,6 +32,7 @@ func (v *VersionPage) Update(msg tea.Msg) (page, tea.Cmd) {
 			case tea.KeyEnter:
 				v.cfg.Version = v.buffer
 				v.editing = false
+				return v, func() tea.Msg { return configChangedMsg{} }
 			case tea.KeyBackspace:
 				if len(v.buffer) > 0 {
 					v.buffer = v.buffer[:len(v.buffer)-1]

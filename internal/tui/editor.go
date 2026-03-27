@@ -159,6 +159,8 @@ func (e *EditorPage) updateEditing(msg tea.KeyMsg) (page, tea.Cmd) {
 		items := e.items()
 		if e.cursor >= 0 && e.cursor < len(items) && items[e.cursor].isScalar {
 			items[e.cursor].node.Value = e.editBuffer
+			e.mode = modeBrowse
+			return e, func() tea.Msg { return configChangedMsg{} }
 		}
 		e.mode = modeBrowse
 	case tea.KeyEscape:
@@ -204,8 +206,8 @@ func (e *EditorPage) updateAddValue(msg tea.KeyMsg) (page, tea.Cmd) {
 		e.editBuffer = ""
 		e.addKeyBuf = ""
 		e.mode = modeBrowse
-		// Move cursor to the new item.
 		e.cursor = len(e.current.Content)/2 - 1
+		return e, func() tea.Msg { return configChangedMsg{} }
 	case tea.KeyEscape:
 		e.mode = modeBrowse
 		e.editBuffer = ""
@@ -229,6 +231,7 @@ func (e *EditorPage) updateAddListItem(msg tea.KeyMsg) (page, tea.Cmd) {
 		e.editBuffer = ""
 		e.mode = modeBrowse
 		e.cursor = len(e.current.Content) - 1
+		return e, func() tea.Msg { return configChangedMsg{} }
 	case tea.KeyEscape:
 		e.mode = modeBrowse
 		e.editBuffer = ""
@@ -247,6 +250,7 @@ func (e *EditorPage) updateConfirmDelete(msg tea.KeyMsg) (page, tea.Cmd) {
 	case "y":
 		e.deleteCurrentItem()
 		e.mode = modeBrowse
+		return e, func() tea.Msg { return configChangedMsg{} }
 	case "n", "esc":
 		e.mode = modeBrowse
 	}

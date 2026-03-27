@@ -76,6 +76,7 @@ func (s *ServicesPage) Update(msg tea.Msg) (page, tea.Cmd) {
 				svc := s.cfg.Services[name]
 				svc.Enabled = !svc.Enabled
 				s.cfg.Services[name] = svc
+				return s, func() tea.Msg { return configChangedMsg{} }
 			}
 		case "enter":
 			// Enter drills into service config.

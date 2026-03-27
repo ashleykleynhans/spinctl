@@ -43,6 +43,7 @@ func (f *FeaturesPage) Update(msg tea.Msg) (page, tea.Cmd) {
 			if f.cursor >= 0 && f.cursor < len(f.sortedNames) {
 				name := f.sortedNames[f.cursor]
 				f.cfg.Features[name] = !f.cfg.Features[name]
+				return f, func() tea.Msg { return configChangedMsg{} }
 			}
 		}
 	}

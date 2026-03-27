@@ -48,6 +48,9 @@ type saveResultMsg struct {
 // goBackMsg signals the app to navigate back to the previous page.
 type goBackMsg struct{}
 
+// configChangedMsg signals that config data was modified.
+type configChangedMsg struct{}
+
 // App is the root bubbletea model and page router.
 type App struct {
 	cfg          *config.SpinctlConfig
@@ -109,6 +112,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case goBackMsg:
 		a.goBack()
+		return a, nil
+
+	case configChangedMsg:
+		a.dirty = true
 		return a, nil
 
 	case saveResultMsg:
@@ -189,14 +196,12 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var updated page
 			updated, cmd = a.servicesPage.Update(msg)
 			a.servicesPage = updated
-			a.markDirty()
 		}
 	case PageProviders, PageSecurity, PageFeatures, PageVersion, PageEditor:
 		if a.editorPage != nil {
 			var updated page
 			updated, cmd = a.editorPage.Update(msg)
 			a.editorPage = updated
-			a.markDirty()
 		}
 	case PageImport:
 		if a.importPage != nil {
@@ -213,10 +218,6 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return a, cmd
-}
-
-func (a *App) markDirty() {
-	a.dirty = true
 }
 
 func (a *App) saveConfig() tea.Cmd {
