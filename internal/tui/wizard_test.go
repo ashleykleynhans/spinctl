@@ -947,3 +947,31 @@ func TestWizardUpdateImportPath(t *testing.T) {
 		t.Error("should return nil cmd")
 	}
 }
+
+func TestWizardGoBackFromProviderFields(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardProviderFields
+	w.providerForm = NewFieldForm("test", []FieldDef{{Name: "name", Label: "Name", Required: true}})
+
+	w.Update(goBackMsg{})
+	if w.step != wizardProvider {
+		t.Errorf("step = %v, want wizardProvider", w.step)
+	}
+	if w.providerForm != nil {
+		t.Error("providerForm should be nil after goBack")
+	}
+}
+
+func TestWizardGoBackFromStorageFields(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardStorageFields
+	w.storageForm = NewFieldForm("test", []FieldDef{{Name: "bucket", Label: "Bucket", Required: true}})
+
+	w.Update(goBackMsg{})
+	if w.step != wizardStorage {
+		t.Errorf("step = %v, want wizardStorage", w.step)
+	}
+	if w.storageForm != nil {
+		t.Error("storageForm should be nil after goBack")
+	}
+}

@@ -63,8 +63,12 @@ func (f *FieldForm) Update(msg tea.Msg) (page, tea.Cmd) {
 				f.buffer = f.values[next.Name]
 			}
 		case tea.KeyEscape:
-			// Skip optional field or cancel.
-			if f.cursor < len(f.fields) && !f.fields[f.cursor].Required {
+			// On required field or first field: cancel the entire form.
+			if f.cursor == 0 || (f.cursor < len(f.fields) && f.fields[f.cursor].Required) {
+				return f, func() tea.Msg { return goBackMsg{} }
+			}
+			// Skip optional field.
+			if f.cursor < len(f.fields) {
 				f.values[f.fields[f.cursor].Name] = ""
 				f.cursor++
 				if f.cursor >= len(f.fields) {
@@ -134,6 +138,8 @@ func (f *FieldForm) View() string {
 		hints := "enter: confirm"
 		if !f.fields[f.cursor].Required {
 			hints += "  esc: skip"
+		} else {
+			hints += "  esc: back"
 		}
 		b.WriteString("  " + menuDescStyle.Render(hints) + "\n")
 	}

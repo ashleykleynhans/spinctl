@@ -166,12 +166,36 @@ func TestFieldFormViewShowsDefault(t *testing.T) {
 	}
 }
 
-func TestFieldFormEscOnRequiredDoesNotSkip(t *testing.T) {
+func TestFieldFormEscOnRequiredSendsGoBack(t *testing.T) {
 	ff := NewFieldForm("Test", testFields())
-	// First field is required; esc should not skip.
-	ff.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	// First field is required; esc should send goBackMsg.
+	_, cmd := ff.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	if cmd == nil {
+		t.Fatal("expected goBackMsg command on esc from required field")
+	}
+	msg := cmd()
+	if _, ok := msg.(goBackMsg); !ok {
+		t.Fatalf("expected goBackMsg, got %T", msg)
+	}
 	if ff.cursor != 0 {
-		t.Errorf("cursor = %d, want 0 (esc should not skip required)", ff.cursor)
+		t.Errorf("cursor = %d, want 0", ff.cursor)
+	}
+}
+
+func TestFieldFormEscOnFirstFieldSendsGoBack(t *testing.T) {
+	fields := []FieldDef{
+		{Name: "opt1", Label: "Optional 1"},
+		{Name: "opt2", Label: "Optional 2"},
+	}
+	ff := NewFieldForm("Test", fields)
+	// Even though first field is optional, esc on cursor=0 sends goBack.
+	_, cmd := ff.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	if cmd == nil {
+		t.Fatal("expected goBackMsg on esc from first field")
+	}
+	msg := cmd()
+	if _, ok := msg.(goBackMsg); !ok {
+		t.Fatalf("expected goBackMsg, got %T", msg)
 	}
 }
 

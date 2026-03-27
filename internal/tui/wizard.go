@@ -85,6 +85,17 @@ func NewWizardPage(cfg *config.SpinctlConfig, halDir string) *WizardPage {
 
 func (w *WizardPage) Update(msg tea.Msg) (page, tea.Cmd) {
 	switch msg := msg.(type) {
+	case goBackMsg:
+		// Field form cancelled — go back to the selection step.
+		switch w.step {
+		case wizardProviderFields:
+			w.providerForm = nil
+			w.step = wizardProvider
+		case wizardStorageFields:
+			w.storageForm = nil
+			w.step = wizardStorage
+		}
+		return w, nil
 	case versionValidMsg:
 		w.validating = false
 		if msg.err != nil {
