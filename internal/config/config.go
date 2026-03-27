@@ -27,12 +27,13 @@ type SpinctlConfig struct {
 type ProviderConfig struct {
 	Enabled  bool              `yaml:"enabled"`
 	Accounts []ProviderAccount `yaml:"accounts,omitempty"`
+	Extra    map[string]any    `yaml:",inline"`
 }
 
 type ProviderAccount struct {
 	Name    string         `yaml:"name"`
 	Context string         `yaml:"context,omitempty"`
-	Extra   map[string]any `yaml:"extra,omitempty"`
+	Extra   map[string]any `yaml:",inline"`
 }
 
 type SecurityConfig struct {
