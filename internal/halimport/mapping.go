@@ -123,12 +123,37 @@ func mapHalToSpinctl(hal *halConfig, deploymentName string) (*config.SpinctlConf
 		cfg.Features = dc.Features
 	}
 
-	// Store unmapped fields in Custom.
-	if len(dc.Extra) > 0 {
-		cfg.Custom = make(map[string]any, len(dc.Extra))
-		for k, v := range dc.Extra {
-			cfg.Custom[k] = v
+	// Map known halyard sections to dedicated config fields.
+	knownSections := map[string]func(any){
+		"artifacts":             func(v any) { cfg.Artifacts = toMapStringAny(v) },
+		"persistentStorage":     func(v any) { cfg.PersistentStorage = toMapStringAny(v) },
+		"notifications":         func(v any) { cfg.Notifications = toMapStringAny(v) },
+		"ci":                    func(v any) { cfg.CI = toMapStringAny(v) },
+		"repository":            func(v any) { cfg.Repository = toMapStringAny(v) },
+		"pubsub":                func(v any) { cfg.Pubsub = toMapStringAny(v) },
+		"canary":                func(v any) { cfg.Canary = toMapStringAny(v) },
+		"webhook":               func(v any) { cfg.Webhook = toMapStringAny(v) },
+		"metricStores":          func(v any) { cfg.MetricStores = toMapStringAny(v) },
+		"stats":                 func(v any) { cfg.Stats = toMapStringAny(v) },
+		"deploymentEnvironment": func(v any) { cfg.DeploymentEnvironment = toMapStringAny(v) },
+		"spinnaker":             func(v any) { cfg.Spinnaker = toMapStringAny(v) },
+		"timezone": func(v any) {
+			if s, ok := v.(string); ok {
+				cfg.Timezone = s
+			}
+		},
+	}
+
+	custom := make(map[string]any)
+	for k, v := range dc.Extra {
+		if handler, ok := knownSections[k]; ok {
+			handler(v)
+		} else {
+			custom[k] = v
 		}
+	}
+	if len(custom) > 0 {
+		cfg.Custom = custom
 	}
 
 	return cfg, nil
@@ -154,6 +179,14 @@ func mapProviders(halProviders map[string]halProvider) map[string]config.Provide
 		providers[name] = pc
 	}
 	return providers
+}
+
+// toMapStringAny converts an any value to map[string]any, or returns nil.
+func toMapStringAny(v any) map[string]any {
+	if m, ok := v.(map[string]any); ok {
+		return m
+	}
+	return nil
 }
 
 // mapSecurity converts Halyard security configuration to spinctl SecurityConfig.

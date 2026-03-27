@@ -21,7 +21,23 @@ type SpinctlConfig struct {
 	Security         SecurityConfig                      `yaml:"security,omitempty"`
 	Features         map[string]bool                     `yaml:"features,omitempty"`
 	AptRepository    string                              `yaml:"apt_repository,omitempty"`
-	Custom           map[string]any                      `yaml:"custom,omitempty"`
+
+	// Spinnaker config sections imported from Halyard.
+	Artifacts             map[string]any `yaml:"artifacts,omitempty"`
+	PersistentStorage     map[string]any `yaml:"persistent_storage,omitempty"`
+	Notifications         map[string]any `yaml:"notifications,omitempty"`
+	CI                    map[string]any `yaml:"ci,omitempty"`
+	Repository            map[string]any `yaml:"repository,omitempty"`
+	Pubsub                map[string]any `yaml:"pubsub,omitempty"`
+	Canary                map[string]any `yaml:"canary,omitempty"`
+	Webhook               map[string]any `yaml:"webhook,omitempty"`
+	MetricStores          map[string]any `yaml:"metric_stores,omitempty"`
+	Stats                 map[string]any `yaml:"stats,omitempty"`
+	Timezone              string         `yaml:"timezone,omitempty"`
+	DeploymentEnvironment map[string]any `yaml:"deployment_environment,omitempty"`
+	Spinnaker             map[string]any `yaml:"spinnaker,omitempty"`
+
+	Custom map[string]any `yaml:"custom,omitempty"`
 }
 
 type ProviderConfig struct {

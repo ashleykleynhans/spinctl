@@ -9,6 +9,16 @@ import (
 	"github.com/spinnaker/spinctl/internal/config"
 )
 
+// findMenuCursor returns the cursor index for a given page action in the home page.
+func findMenuCursor(hp *HomePage, target PageID) int {
+	for i, item := range hp.items {
+		if item.action == target {
+			return i
+		}
+	}
+	return -1
+}
+
 func TestAppInit(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Version = "1.35.0"
@@ -117,9 +127,8 @@ func TestAppNavigateToImport(t *testing.T) {
 	cfg := config.NewDefault()
 	app := NewApp(cfg, "", "test")
 
-	// Navigate to Import from Halyard (index 6, after separator).
 	hp := app.homePage.(*HomePage)
-	hp.cursor = 6
+	hp.cursor = findMenuCursor(hp, PageImport)
 	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	if app.currentPage != PageImport {
 		t.Errorf("currentPage = %v, want PageImport", app.currentPage)
@@ -134,9 +143,8 @@ func TestAppNavigateToDeploy(t *testing.T) {
 	cfg := config.NewDefault()
 	app := NewApp(cfg, "", "test")
 
-	// Navigate to Deploy (index 7).
 	hp := app.homePage.(*HomePage)
-	hp.cursor = 7
+	hp.cursor = findMenuCursor(hp, PageDeploy)
 	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	if app.currentPage != PageDeploy {
 		t.Errorf("currentPage = %v, want PageDeploy", app.currentPage)
@@ -210,7 +218,7 @@ func TestAppDelegatesToImportPage(t *testing.T) {
 
 	// Navigate to import page.
 	hp := app.homePage.(*HomePage)
-	hp.cursor = 6 // Import from Halyard
+	hp.cursor = findMenuCursor(hp, PageImport)
 	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	if app.currentPage != PageImport {
 		t.Fatalf("expected PageImport, got %v", app.currentPage)
@@ -230,7 +238,7 @@ func TestAppDelegatesToDeployPage(t *testing.T) {
 
 	// Navigate to deploy page.
 	hp := app.homePage.(*HomePage)
-	hp.cursor = 7 // Deploy
+	hp.cursor = findMenuCursor(hp, PageDeploy)
 	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	if app.currentPage != PageDeploy {
 		t.Fatalf("expected PageDeploy, got %v", app.currentPage)
@@ -395,7 +403,7 @@ func TestAppNavigateToVersion(t *testing.T) {
 	app := NewApp(cfg, "", "test")
 
 	hp := app.homePage.(*HomePage)
-	hp.cursor = 4 // Version
+	hp.cursor = findMenuCursor(hp, PageVersion)
 	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	if app.currentPage != PageVersion {
 		t.Errorf("currentPage = %v, want PageVersion", app.currentPage)
@@ -407,7 +415,7 @@ func TestAppNavigateToSecurity(t *testing.T) {
 	app := NewApp(cfg, "", "test")
 
 	hp := app.homePage.(*HomePage)
-	hp.cursor = 2 // Security
+	hp.cursor = findMenuCursor(hp, PageSecurity)
 	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	if app.currentPage != PageSecurity {
 		t.Errorf("currentPage = %v, want PageSecurity", app.currentPage)
@@ -419,7 +427,7 @@ func TestAppNavigateToFeatures(t *testing.T) {
 	app := NewApp(cfg, "", "test")
 
 	hp := app.homePage.(*HomePage)
-	hp.cursor = 3 // Features
+	hp.cursor = findMenuCursor(hp, PageFeatures)
 	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	if app.currentPage != PageFeatures {
 		t.Errorf("currentPage = %v, want PageFeatures", app.currentPage)
@@ -444,17 +452,17 @@ func TestAppViewAllPages(t *testing.T) {
 	// Test each page renders without panic.
 	pages := []struct {
 		name   string
-		cursor int
+		pageID PageID
 	}{
-		{"Services", 0},
-		{"Import", 6},
-		{"Deploy", 7},
+		{"Services", PageServices},
+		{"Import", PageImport},
+		{"Deploy", PageDeploy},
 	}
 	for _, tc := range pages {
 		t.Run(tc.name, func(t *testing.T) {
 			app := NewApp(cfg, "", "test")
 			hp := app.homePage.(*HomePage)
-			hp.cursor = tc.cursor
+			hp.cursor = findMenuCursor(hp, tc.pageID)
 			app.Update(tea.KeyMsg{Type: tea.KeyEnter})
 			view := app.View()
 			if view == "" {

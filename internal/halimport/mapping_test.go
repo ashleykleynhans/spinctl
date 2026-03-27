@@ -55,18 +55,15 @@ func TestMapBasicHalConfig(t *testing.T) {
 		t.Error("features.artifacts should be true")
 	}
 
-	// Check unmapped globals in Custom (notifications, metricStores).
-	if cfg.Custom == nil {
-		t.Fatal("Custom map should not be nil")
+	// Check known halyard sections mapped to dedicated fields.
+	if cfg.Notifications == nil {
+		t.Error("Notifications should not be nil")
 	}
-	if _, ok := cfg.Custom["notifications"]; !ok {
-		t.Error("Custom should contain notifications")
+	if cfg.MetricStores == nil {
+		t.Error("MetricStores should not be nil")
 	}
-	if _, ok := cfg.Custom["metricStores"]; !ok {
-		t.Error("Custom should contain metricStores")
-	}
-	if _, ok := cfg.Custom["deploymentEnvironment"]; !ok {
-		t.Error("Custom should contain deploymentEnvironment")
+	if cfg.DeploymentEnvironment == nil {
+		t.Error("DeploymentEnvironment should not be nil")
 	}
 }
 

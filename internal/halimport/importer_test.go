@@ -59,9 +59,10 @@ func TestImportFromHalDir(t *testing.T) {
 		t.Errorf("deployment = %q, want %q", result.DeploymentName, "default")
 	}
 
-	// Check unmapped fields are reported.
-	if len(result.UnmappedFields) == 0 {
-		t.Error("expected unmapped fields")
+	// All fields in the basic fixture should be mapped to dedicated config fields.
+	// No unmapped fields expected.
+	if len(result.UnmappedFields) > 0 {
+		t.Errorf("unexpected unmapped fields: %v", result.UnmappedFields)
 	}
 
 	// Verify the saved file can be loaded back.

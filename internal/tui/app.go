@@ -6,6 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"gopkg.in/yaml.v3"
 
 	"github.com/spinnaker/spinctl/internal/config"
 	"github.com/spinnaker/spinctl/internal/tui/components"
@@ -22,6 +23,17 @@ const (
 	PageSecurity
 	PageFeatures
 	PageVersion
+	PageArtifacts
+	PagePersistentStorage
+	PageNotifications
+	PageCI
+	PageRepository
+	PagePubsub
+	PageCanary
+	PageWebhook
+	PageMetricStores
+	PageDeploymentEnv
+	PageSpinnaker
 	PageEditor
 	PageImport
 	PageDeploy
@@ -197,7 +209,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			updated, cmd = a.servicesPage.Update(msg)
 			a.servicesPage = updated
 		}
-	case PageProviders, PageSecurity, PageFeatures, PageVersion, PageEditor:
+		case PageProviders, PageSecurity, PageFeatures, PageVersion,
+		PageArtifacts, PagePersistentStorage, PageNotifications, PageCI,
+		PageRepository, PagePubsub, PageCanary, PageWebhook,
+		PageMetricStores, PageDeploymentEnv, PageSpinnaker, PageEditor:
 		if a.editorPage != nil {
 			var updated page
 			updated, cmd = a.editorPage.Update(msg)
@@ -242,11 +257,48 @@ func (a *App) navigateTo(pageID PageID) {
 		a.editorPage = NewFeaturesPage(a.cfg)
 	case PageVersion:
 		a.editorPage = NewVersionPage(a.cfg)
+	case PageArtifacts:
+		a.editorPage = newConfigSectionPage(a.cfg.Artifacts, "Artifacts")
+	case PagePersistentStorage:
+		a.editorPage = newConfigSectionPage(a.cfg.PersistentStorage, "Persistent Storage")
+	case PageNotifications:
+		a.editorPage = newConfigSectionPage(a.cfg.Notifications, "Notifications")
+	case PageCI:
+		a.editorPage = newConfigSectionPage(a.cfg.CI, "CI")
+	case PageRepository:
+		a.editorPage = newConfigSectionPage(a.cfg.Repository, "Repository")
+	case PagePubsub:
+		a.editorPage = newConfigSectionPage(a.cfg.Pubsub, "Pub/Sub")
+	case PageCanary:
+		a.editorPage = newConfigSectionPage(a.cfg.Canary, "Canary")
+	case PageWebhook:
+		a.editorPage = newConfigSectionPage(a.cfg.Webhook, "Webhook")
+	case PageMetricStores:
+		a.editorPage = newConfigSectionPage(a.cfg.MetricStores, "Metric Stores")
+	case PageDeploymentEnv:
+		a.editorPage = newConfigSectionPage(a.cfg.DeploymentEnvironment, "Deployment Environment")
+	case PageSpinnaker:
+		a.editorPage = newConfigSectionPage(a.cfg.Spinnaker, "Spinnaker")
 	case PageImport:
 		a.importPage = NewImportPage("")
 	case PageDeploy:
 		a.deployPage = NewDeployPage(nil)
 	}
+}
+
+// newConfigSectionPage creates an editor page for a map[string]any config section.
+func newConfigSectionPage(data map[string]any, label string) page {
+	var node *yaml.Node
+	if len(data) == 0 {
+		node = &yaml.Node{Kind: yaml.MappingNode}
+	} else {
+		var err error
+		node, err = toYAMLNode(data)
+		if err != nil {
+			node = &yaml.Node{Kind: yaml.MappingNode}
+		}
+	}
+	return newSectionPage(NewEditorPage(node, label))
 }
 
 func (a *App) goBack() {
@@ -286,7 +338,10 @@ func (a *App) View() string {
 		if a.servicesPage != nil {
 			b.WriteString(a.servicesPage.View())
 		}
-	case PageProviders, PageSecurity, PageFeatures, PageVersion, PageEditor:
+		case PageProviders, PageSecurity, PageFeatures, PageVersion,
+		PageArtifacts, PagePersistentStorage, PageNotifications, PageCI,
+		PageRepository, PagePubsub, PageCanary, PageWebhook,
+		PageMetricStores, PageDeploymentEnv, PageSpinnaker, PageEditor:
 		if a.editorPage != nil {
 			b.WriteString(a.editorPage.View())
 		}

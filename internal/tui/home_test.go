@@ -8,6 +8,16 @@ import (
 	"github.com/spinnaker/spinctl/internal/config"
 )
 
+// findSeparatorIndex returns the index of the first separator in the menu.
+func findSeparatorIndex(hp *HomePage) int {
+	for i, item := range hp.items {
+		if item.separator {
+			return i
+		}
+	}
+	return -1
+}
+
 func TestHomePageView(t *testing.T) {
 	cfg := config.NewDefault()
 	hp := NewHomePage(cfg)
@@ -28,13 +38,11 @@ func TestHomePageNavigation(t *testing.T) {
 		t.Errorf("initial cursor = %d, want 0", hp.cursor)
 	}
 
-	// Move down.
 	hp.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
 	if hp.cursor != 1 {
 		t.Errorf("cursor after j = %d, want 1", hp.cursor)
 	}
 
-	// Move up.
 	hp.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
 	if hp.cursor != 0 {
 		t.Errorf("cursor after k = %d, want 0", hp.cursor)
@@ -45,7 +53,6 @@ func TestHomePageSelect(t *testing.T) {
 	cfg := config.NewDefault()
 	hp := NewHomePage(cfg)
 
-	// First item is Services.
 	hp.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	if hp.selected != PageServices {
 		t.Errorf("selected = %v, want PageServices", hp.selected)
@@ -56,12 +63,11 @@ func TestHomePageSkipsSeparator(t *testing.T) {
 	cfg := config.NewDefault()
 	hp := NewHomePage(cfg)
 
-	// Navigate to item before separator (index 4 = Version).
-	hp.cursor = 4
+	sepIdx := findSeparatorIndex(hp)
+	hp.cursor = sepIdx - 1
 	hp.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
-	// Should skip separator (index 5) and land on index 6.
-	if hp.cursor != 6 {
-		t.Errorf("cursor should skip separator, got %d, want 6", hp.cursor)
+	if hp.cursor != sepIdx+1 {
+		t.Errorf("cursor should skip separator, got %d, want %d", hp.cursor, sepIdx+1)
 	}
 }
 
@@ -69,12 +75,11 @@ func TestHomePageSkipsSeparatorGoingUp(t *testing.T) {
 	cfg := config.NewDefault()
 	hp := NewHomePage(cfg)
 
-	// Navigate to item after separator (index 6 = Import).
-	hp.cursor = 6
+	sepIdx := findSeparatorIndex(hp)
+	hp.cursor = sepIdx + 1
 	hp.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
-	// Should skip separator (index 5) and land on index 4.
-	if hp.cursor != 4 {
-		t.Errorf("cursor should skip separator going up, got %d, want 4", hp.cursor)
+	if hp.cursor != sepIdx-1 {
+		t.Errorf("cursor should skip separator going up, got %d, want %d", hp.cursor, sepIdx-1)
 	}
 }
 
@@ -82,7 +87,6 @@ func TestHomePageWrapAroundDown(t *testing.T) {
 	cfg := config.NewDefault()
 	hp := NewHomePage(cfg)
 
-	// Navigate to last item.
 	hp.cursor = len(hp.items) - 1
 	hp.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
 	if hp.cursor != 0 {
@@ -96,7 +100,6 @@ func TestHomePageWrapAroundUp(t *testing.T) {
 
 	hp.cursor = 0
 	hp.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
-	// Should wrap to last item. If last is separator, should skip to penultimate.
 	last := len(hp.items) - 1
 	if hp.items[last].separator {
 		last--
@@ -142,8 +145,8 @@ func TestHomePageViewShowsCursor(t *testing.T) {
 func TestHomePageSelectDoesNotSelectSeparator(t *testing.T) {
 	cfg := config.NewDefault()
 	hp := NewHomePage(cfg)
-	// Force cursor on separator.
-	hp.cursor = 5
+	sepIdx := findSeparatorIndex(hp)
+	hp.cursor = sepIdx
 	hp.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	if hp.selected != 0 {
 		t.Errorf("should not select separator, selected = %v", hp.selected)
