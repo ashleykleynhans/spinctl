@@ -28,8 +28,10 @@ const (
 )
 
 var (
-	titleStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
-	statusStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+	titleStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
+	statusStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+	successStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("82"))
+	warnStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
 )
 
 // page is the interface each TUI page must implement.
@@ -38,22 +40,29 @@ type page interface {
 	View() string
 }
 
+// saveResultMsg is sent after a save attempt.
+type saveResultMsg struct {
+	err error
+}
+
 // App is the root bubbletea model and page router.
 type App struct {
-	cfg         *config.SpinctlConfig
-	configPath  string
-	version     string
-	currentPage PageID
-	pageStack   []PageID
-	homePage    page
+	cfg          *config.SpinctlConfig
+	configPath   string
+	version      string
+	currentPage  PageID
+	pageStack    []PageID
+	homePage     page
 	servicesPage page
-	editorPage  page
-	importPage  page
-	deployPage  page
-	dirty       bool
-	width       int
-	height      int
-	statusBar   *components.StatusBar
+	editorPage   page
+	importPage   page
+	deployPage   page
+	dirty        bool
+	width        int
+	height       int
+	statusBar    *components.StatusBar
+	confirmQuit  bool
+	saveMessage  string
 }
 
 // NewApp creates a new App with the home page active.
@@ -91,13 +100,52 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err == nil && msg.result != nil && msg.result.Config != nil {
 			a.cfg = msg.result.Config
 			a.homePage = NewHomePage(a.cfg)
+			a.dirty = false
 		}
 		// Still delegate to import page so it can show the result.
 
+	case saveResultMsg:
+		if msg.err != nil {
+			a.saveMessage = warnStyle.Render(fmt.Sprintf("Save failed: %s", msg.err))
+		} else {
+			a.dirty = false
+			a.saveMessage = successStyle.Render("Config saved")
+		}
+		return a, nil
+
 	case tea.KeyMsg:
+		// Clear save message on any key press.
+		a.saveMessage = ""
+
+		// Handle quit confirmation.
+		if a.confirmQuit {
+			switch msg.String() {
+			case "y":
+				return a, tea.Quit
+			case "n":
+				a.confirmQuit = false
+				return a, nil
+			case "s":
+				// Save then quit.
+				a.confirmQuit = false
+				return a, tea.Sequence(a.saveConfig(), func() tea.Msg {
+					return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+				})
+			}
+			return a, nil
+		}
+
 		switch msg.String() {
 		case "q", "ctrl+c":
+			if a.dirty {
+				a.confirmQuit = true
+				return a, nil
+			}
 			return a, tea.Quit
+		case "s":
+			if a.currentPage == PageHome {
+				return a, a.saveConfig()
+			}
 		case "esc":
 			if a.currentPage != PageHome {
 				a.goBack()
@@ -126,12 +174,14 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var updated page
 			updated, cmd = a.servicesPage.Update(msg)
 			a.servicesPage = updated
+			a.markDirty()
 		}
 	case PageProviders, PageSecurity, PageFeatures, PageVersion, PageEditor:
 		if a.editorPage != nil {
 			var updated page
 			updated, cmd = a.editorPage.Update(msg)
 			a.editorPage = updated
+			a.markDirty()
 		}
 	case PageImport:
 		if a.importPage != nil {
@@ -148,6 +198,17 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return a, cmd
+}
+
+func (a *App) markDirty() {
+	a.dirty = true
+}
+
+func (a *App) saveConfig() tea.Cmd {
+	return func() tea.Msg {
+		err := config.SaveToFile(a.cfg, a.configPath)
+		return saveResultMsg{err: err}
+	}
 }
 
 func (a *App) navigateTo(pageID PageID) {
@@ -190,6 +251,15 @@ func (a *App) View() string {
 	b.WriteString(strings.Repeat("─", max(a.width, 40)))
 	b.WriteString("\n")
 
+	// Quit confirmation overlay.
+	if a.confirmQuit {
+		b.WriteString("\n")
+		b.WriteString(warnStyle.Render("  You have unsaved changes."))
+		b.WriteString("\n\n")
+		b.WriteString("  s: save and quit  y: quit without saving  n: cancel\n")
+		return b.String()
+	}
+
 	// Current page content.
 	switch a.currentPage {
 	case PageHome:
@@ -216,9 +286,18 @@ func (a *App) View() string {
 
 	b.WriteString("\n")
 
+	// Save message.
+	if a.saveMessage != "" {
+		b.WriteString("  " + a.saveMessage + "\n")
+	}
+
 	// Status bar.
 	a.statusBar.SetModified(a.dirty)
-	b.WriteString(a.statusBar.View("q: quit  ?: help"))
+	hints := "s: save  q: quit  ?: help"
+	if a.currentPage != PageHome {
+		hints = "esc: back  s: save  q: quit"
+	}
+	b.WriteString(a.statusBar.View(hints))
 
 	return b.String()
 }
