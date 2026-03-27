@@ -31,10 +31,10 @@ func NewHomePage(cfg *config.SpinctlConfig) *HomePage {
 
 	items := []menuItem{
 		{label: fmt.Sprintf("Services (%d)", serviceCount), description: "Configure Spinnaker services", action: PageServices},
-		{label: fmt.Sprintf("Providers (%d)", providerCount), description: "Configure cloud providers", action: PageEditor},
-		{label: "Security", description: "Authentication & authorization", action: PageEditor},
-		{label: "Features", description: "Feature flags", action: PageEditor},
-		{label: fmt.Sprintf("Version: %s", cfg.Version), description: "Spinnaker version", action: PageEditor},
+		{label: fmt.Sprintf("Providers (%d)", providerCount), description: "Configure cloud providers", action: PageProviders},
+		{label: "Security", description: "Authentication & authorization", action: PageSecurity},
+		{label: "Features", description: "Feature flags", action: PageFeatures},
+		{label: fmt.Sprintf("Version: %s", cfg.Version), description: "Spinnaker version", action: PageVersion},
 		{separator: true},
 		{label: "Import from Halyard", description: "Import existing halconfig", action: PageImport},
 		{label: "Deploy", description: "Deploy configuration changes", action: PageDeploy},

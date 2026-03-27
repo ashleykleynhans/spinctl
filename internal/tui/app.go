@@ -18,6 +18,10 @@ const (
 	PageHome PageID = iota
 	PageServices
 	PageServiceDetail
+	PageProviders
+	PageSecurity
+	PageFeatures
+	PageVersion
 	PageEditor
 	PageImport
 	PageDeploy
@@ -115,7 +119,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			updated, cmd = a.servicesPage.Update(msg)
 			a.servicesPage = updated
 		}
-	case PageEditor:
+	case PageProviders, PageSecurity, PageFeatures, PageVersion, PageEditor:
 		if a.editorPage != nil {
 			var updated page
 			updated, cmd = a.editorPage.Update(msg)
@@ -145,6 +149,14 @@ func (a *App) navigateTo(pageID PageID) {
 	switch pageID {
 	case PageServices:
 		a.servicesPage = NewServicesPage(a.cfg)
+	case PageProviders:
+		a.editorPage = NewProvidersPage(a.cfg)
+	case PageSecurity:
+		a.editorPage = NewSecurityPage(a.cfg)
+	case PageFeatures:
+		a.editorPage = NewFeaturesPage(a.cfg)
+	case PageVersion:
+		a.editorPage = NewVersionPage(a.cfg)
 	case PageImport:
 		a.importPage = NewImportPage("")
 	case PageDeploy:
@@ -180,7 +192,7 @@ func (a *App) View() string {
 		if a.servicesPage != nil {
 			b.WriteString(a.servicesPage.View())
 		}
-	case PageEditor:
+	case PageProviders, PageSecurity, PageFeatures, PageVersion, PageEditor:
 		if a.editorPage != nil {
 			b.WriteString(a.editorPage.View())
 		}

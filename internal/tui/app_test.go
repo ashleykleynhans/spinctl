@@ -247,12 +247,12 @@ func TestAppNavigateToEditor(t *testing.T) {
 	cfg := config.NewDefault()
 	app := NewApp(cfg, "", "test")
 
-	// Navigate to Providers (index 1), which goes to editor page.
+	// Navigate to Providers (index 1).
 	hp := app.homePage.(*HomePage)
 	hp.cursor = 1
 	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	if app.currentPage != PageEditor {
-		t.Errorf("expected PageEditor, got %v", app.currentPage)
+	if app.currentPage != PageProviders {
+		t.Errorf("expected PageProviders, got %v", app.currentPage)
 	}
 }
 
