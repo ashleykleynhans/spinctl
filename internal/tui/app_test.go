@@ -704,3 +704,33 @@ func TestAppEscOnHomeDoesNothing(t *testing.T) {
 		t.Errorf("esc on home should stay on home, got %v", app.currentPage)
 	}
 }
+
+func TestAppFirstRunShowsWizard(t *testing.T) {
+	cfg := config.NewDefault()
+	app := NewApp(cfg, "", "", "test", true)
+	if app.currentPage != PageWizard {
+		t.Errorf("currentPage = %v, want PageWizard", app.currentPage)
+	}
+	if app.activePage == nil {
+		t.Error("activePage should be the wizard page")
+	}
+	if _, ok := app.activePage.(*WizardPage); !ok {
+		t.Errorf("activePage type = %T, want *WizardPage", app.activePage)
+	}
+}
+
+func TestAppWizardDoneMsg(t *testing.T) {
+	cfg := config.NewDefault()
+	app := NewApp(cfg, "", "", "test", true)
+	if app.currentPage != PageWizard {
+		t.Fatalf("expected PageWizard, got %v", app.currentPage)
+	}
+
+	app.Update(wizardDoneMsg{})
+	if app.currentPage != PageHome {
+		t.Errorf("after wizardDoneMsg, currentPage = %v, want PageHome", app.currentPage)
+	}
+	if !app.dirty {
+		t.Error("app should be dirty after wizard completes")
+	}
+}
