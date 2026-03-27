@@ -2,11 +2,13 @@ package tui
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/spinnaker/spinctl/internal/config"
+	"github.com/spinnaker/spinctl/internal/deploy"
 	"github.com/spinnaker/spinctl/internal/model"
 )
 
@@ -24,13 +26,21 @@ const (
 	wizardDone
 )
 
+// versionValidMsg is sent after version validation completes.
+type versionValidMsg struct {
+	version string
+	err     error
+}
+
 // WizardPage guides new users through initial Spinnaker configuration.
 type WizardPage struct {
-	cfg        *config.SpinctlConfig
-	step       wizardStep
-	cursor     int
-	editing    bool
-	editBuffer string
+	cfg          *config.SpinctlConfig
+	step         wizardStep
+	cursor       int
+	editing      bool
+	editBuffer   string
+	validating   bool
+	validateErr  string
 
 	// Service selection state.
 	serviceToggles map[model.ServiceName]bool
@@ -66,9 +76,23 @@ func NewWizardPage(cfg *config.SpinctlConfig) *WizardPage {
 
 func (w *WizardPage) Update(msg tea.Msg) (page, tea.Cmd) {
 	switch msg := msg.(type) {
+	case versionValidMsg:
+		w.validating = false
+		if msg.err != nil {
+			w.validateErr = fmt.Sprintf("Version %q not found: %s", msg.version, msg.err)
+			w.editing = true
+			return w, nil
+		}
+		w.cfg.Version = msg.version
+		w.validateErr = ""
+		w.step = wizardServices
+		return w, nil
 	case fieldFormDoneMsg:
 		return w.handleFormDone(msg)
 	case tea.KeyMsg:
+		if w.validating {
+			return w, nil
+		}
 		if w.editing {
 			return w.updateEditing(msg)
 		}
@@ -163,9 +187,19 @@ func (w *WizardPage) handleFormDone(msg fieldFormDoneMsg) (page, tea.Cmd) {
 func (w *WizardPage) updateEditing(msg tea.KeyMsg) (page, tea.Cmd) {
 	switch msg.Type {
 	case tea.KeyEnter:
+		if w.editBuffer == "" {
+			return w, nil
+		}
 		w.editing = false
-		w.cfg.Version = w.editBuffer
-		w.step = wizardServices
+		w.validating = true
+		w.validateErr = ""
+		ver := w.editBuffer
+		return w, func() tea.Msg {
+			cacheDir := filepath.Join(config.DefaultConfigDir(), "cache", "bom")
+			fetcher := deploy.NewBOMFetcher(deploy.DefaultBOMURLPattern, cacheDir)
+			_, err := fetcher.Fetch(ver)
+			return versionValidMsg{version: ver, err: err}
+		}
 	case tea.KeyEscape:
 		w.editing = false
 	case tea.KeyBackspace:
@@ -315,9 +349,17 @@ func (w *WizardPage) View() string {
 
 	case wizardVersion:
 		b.WriteString("  " + stepIndicator(1, 5) + "\n\n")
-		b.WriteString("  " + keyStyle.Render("Spinnaker version: ") + editCursorStyle.Render(w.editBuffer+"█") + "\n\n")
-		b.WriteString("  " + menuDescStyle.Render("Example: 2025.3.2") + "\n")
-		b.WriteString("  " + menuDescStyle.Render("enter: confirm") + "\n")
+		if w.validating {
+			b.WriteString("  " + keyStyle.Render("Spinnaker version: ") + valueStyle.Render(w.editBuffer) + "\n\n")
+			b.WriteString("  " + keyStyle.Render("Validating version...") + "\n")
+		} else {
+			if w.validateErr != "" {
+				b.WriteString("  " + warnStyle.Render(w.validateErr) + "\n\n")
+			}
+			b.WriteString("  " + keyStyle.Render("Spinnaker version: ") + editCursorStyle.Render(w.editBuffer+"█") + "\n\n")
+			b.WriteString("  " + menuDescStyle.Render("Example: 2025.3.2") + "\n")
+			b.WriteString("  " + menuDescStyle.Render("enter: validate and continue") + "\n")
+		}
 
 	case wizardServices:
 		b.WriteString("  " + stepIndicator(2, 5) + "\n\n")
