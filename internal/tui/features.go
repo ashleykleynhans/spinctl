@@ -10,7 +10,7 @@ import (
 	"github.com/spinnaker/spinctl/internal/config"
 )
 
-// FeaturesPage displays feature flags.
+// FeaturesPage displays feature flags with toggle support.
 type FeaturesPage struct {
 	cfg         *config.SpinctlConfig
 	sortedNames []string
@@ -39,7 +39,7 @@ func (f *FeaturesPage) Update(msg tea.Msg) (page, tea.Cmd) {
 			if f.cursor < len(f.sortedNames)-1 {
 				f.cursor++
 			}
-		case "enter":
+		case "enter", " ":
 			if f.cursor >= 0 && f.cursor < len(f.sortedNames) {
 				name := f.sortedNames[f.cursor]
 				f.cfg.Features[name] = !f.cfg.Features[name]
@@ -71,6 +71,6 @@ func (f *FeaturesPage) View() string {
 		b.WriteString(fmt.Sprintf("%s[%s] %s\n", cursor, status, name))
 	}
 
-	b.WriteString("\n  enter: toggle  esc: back\n")
+	b.WriteString("\n  enter/space: toggle  esc: back\n")
 	return b.String()
 }

@@ -48,14 +48,25 @@ func TestServicesPageToggle(t *testing.T) {
 		t.Error("service should start disabled")
 	}
 
-	sp.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	// Space toggles enabled/disabled.
+	sp.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}})
 	if !cfg.Services[name].Enabled {
 		t.Error("service should be enabled after toggle")
 	}
 
-	sp.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	sp.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}})
 	if cfg.Services[name].Enabled {
 		t.Error("service should be disabled after second toggle")
+	}
+}
+
+func TestServicesPageEnterOpensEditor(t *testing.T) {
+	cfg := config.NewDefault()
+	sp := NewServicesPage(cfg)
+
+	sp.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if sp.editor == nil {
+		t.Error("enter should open the editor for the service")
 	}
 }
 
@@ -142,8 +153,8 @@ func TestServicesPageViewShowsHints(t *testing.T) {
 	cfg := config.NewDefault()
 	sp := NewServicesPage(cfg)
 	view := sp.View()
-	if !strings.Contains(view, "enter: toggle") {
-		t.Error("services page should show toggle hint")
+	if !strings.Contains(view, "enter: configure") {
+		t.Error("services page should show configure hint")
 	}
 	if !strings.Contains(view, "esc: back") {
 		t.Error("services page should show back hint")
