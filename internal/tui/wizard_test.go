@@ -12,7 +12,7 @@ import (
 )
 
 func newTestWizard() *WizardPage {
-	return NewWizardPage(config.NewDefault())
+	return NewWizardPage(config.NewDefault(), "")
 }
 
 func TestWizardInitialState(t *testing.T) {
@@ -27,20 +27,36 @@ func TestWizardInitialState(t *testing.T) {
 	}
 }
 
-func TestWizardWelcomeEnter(t *testing.T) {
+func TestWizardWelcomeImport(t *testing.T) {
 	w := newTestWizard()
+	// Default cursor=0 is "Import from Halyard".
+	w.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if w.step != wizardImportPath {
+		t.Errorf("step = %v, want wizardImportPath", w.step)
+	}
+	if !w.editing {
+		t.Error("should be in editing mode for import path")
+	}
+}
+
+func TestWizardWelcomeFreshInstall(t *testing.T) {
+	w := newTestWizard()
+	// Move to "Fresh install" (cursor=1).
+	w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
 	w.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	if w.step != wizardVersion {
 		t.Errorf("step = %v, want wizardVersion", w.step)
 	}
 	if !w.editing {
-		t.Error("should be in editing mode after welcome enter")
+		t.Error("should be in editing mode after selecting fresh install")
 	}
 }
 
 func TestWizardVersionEditing(t *testing.T) {
 	w := newTestWizard()
-	w.Update(tea.KeyMsg{Type: tea.KeyEnter}) // welcome -> version
+	w.step = wizardVersion
+	w.editing = true
+	w.editBuffer = ""
 	w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'1'}})
 	w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'.'}})
 	w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'0'}})

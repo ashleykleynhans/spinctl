@@ -170,7 +170,7 @@ func NewApp(cfg *config.SpinctlConfig, configPath string, halDir string, version
 	app.homePage = NewHomePage(cfg)
 	if firstRun {
 		app.currentPage = PageWizard
-		app.activePage = NewWizardPage(cfg)
+		app.activePage = NewWizardPage(cfg, halDir)
 	}
 	app.savedSnapshot = app.configSnapshot()
 	return app

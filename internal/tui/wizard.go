@@ -9,6 +9,7 @@ import (
 
 	"github.com/spinnaker/spinctl/internal/config"
 	"github.com/spinnaker/spinctl/internal/deploy"
+	"github.com/spinnaker/spinctl/internal/halimport"
 	"github.com/spinnaker/spinctl/internal/model"
 )
 
@@ -17,6 +18,8 @@ type wizardStep int
 
 const (
 	wizardWelcome wizardStep = iota
+	wizardImportPath
+	wizardImporting
 	wizardVersion
 	wizardServices
 	wizardProvider
@@ -35,6 +38,7 @@ type versionValidMsg struct {
 // WizardPage guides new users through initial Spinnaker configuration.
 type WizardPage struct {
 	cfg          *config.SpinctlConfig
+	halDir       string
 	step         wizardStep
 	cursor       int
 	editing      bool
@@ -59,14 +63,19 @@ type WizardPage struct {
 }
 
 // NewWizardPage creates the setup wizard.
-func NewWizardPage(cfg *config.SpinctlConfig) *WizardPage {
+func NewWizardPage(cfg *config.SpinctlConfig, halDir string) *WizardPage {
 	toggles := make(map[model.ServiceName]bool)
 	for _, name := range model.AllServiceNames() {
 		toggles[name] = true // all enabled by default
 	}
 
+	if halDir == "" {
+		halDir = halimport.DetectHalDir()
+	}
+
 	return &WizardPage{
 		cfg:            cfg,
+		halDir:         halDir,
 		step:           wizardWelcome,
 		serviceToggles: toggles,
 		providerNames:  []string{"kubernetes", "aws", "gcp", "azure", "cloudfoundry", "oracle"},
@@ -92,6 +101,19 @@ func (w *WizardPage) Update(msg tea.Msg) (page, tea.Cmd) {
 		w.validateErr = ""
 		w.step = wizardServices
 		return w, nil
+	case importDoneMsg:
+		w.validating = false
+		if msg.err != nil {
+			w.validateErr = fmt.Sprintf("Import failed: %s", msg.err)
+			w.step = wizardImportPath
+			w.editing = true
+			return w, nil
+		}
+		if msg.result != nil && msg.result.Config != nil {
+			*w.cfg = *msg.result.Config
+		}
+		w.step = wizardDone
+		return w, nil
 	case fieldFormDoneMsg:
 		return w.handleFormDone(msg)
 	case tea.KeyMsg:
@@ -104,6 +126,10 @@ func (w *WizardPage) Update(msg tea.Msg) (page, tea.Cmd) {
 		switch w.step {
 		case wizardWelcome:
 			return w.updateWelcome(msg)
+		case wizardImportPath:
+			return w.updateImportPath(msg)
+		case wizardImporting:
+			return w, nil // ignore keys while importing
 		case wizardVersion:
 			return w.updateVersion(msg)
 		case wizardServices:
@@ -196,8 +222,24 @@ func (w *WizardPage) updateEditing(msg tea.KeyMsg) (page, tea.Cmd) {
 			return w, nil
 		}
 		w.editing = false
-		w.validating = true
 		w.validateErr = ""
+
+		if w.step == wizardImportPath {
+			// Run halyard import.
+			w.step = wizardImporting
+			halPath := w.editBuffer
+			outputPath := config.DefaultConfigPath()
+			return w, func() tea.Msg {
+				result, err := halimport.Import(halimport.ImportOptions{
+					HalDir:     halPath,
+					OutputPath: outputPath,
+				})
+				return importDoneMsg{result: result, err: err}
+			}
+		}
+
+		// Version validation.
+		w.validating = true
 		ver := w.editBuffer
 		return w, func() tea.Msg {
 			cacheDir := filepath.Join(config.DefaultConfigDir(), "cache", "bom")
@@ -206,6 +248,10 @@ func (w *WizardPage) updateEditing(msg tea.KeyMsg) (page, tea.Cmd) {
 			return versionValidMsg{version: ver, err: err}
 		}
 	case tea.KeyEscape:
+		if w.step == wizardImportPath {
+			w.step = wizardWelcome
+			w.cursor = 0
+		}
 		w.editing = false
 	case tea.KeyBackspace:
 		if len(w.editBuffer) > 0 {
@@ -217,11 +263,29 @@ func (w *WizardPage) updateEditing(msg tea.KeyMsg) (page, tea.Cmd) {
 	return w, nil
 }
 
+func (w *WizardPage) updateImportPath(msg tea.KeyMsg) (page, tea.Cmd) {
+	// Handled by editing mode.
+	return w, nil
+}
+
 func (w *WizardPage) updateWelcome(msg tea.KeyMsg) (page, tea.Cmd) {
-	if msg.String() == "enter" {
-		w.step = wizardVersion
-		w.editing = true
-		w.editBuffer = w.cfg.Version
+	switch msg.String() {
+	case "up", "k":
+		w.cursor = 0
+	case "down", "j":
+		w.cursor = 1
+	case "enter":
+		if w.cursor == 0 {
+			// Import from Halyard.
+			w.step = wizardImportPath
+			w.editing = true
+			w.editBuffer = w.halDir
+		} else {
+			// Fresh install.
+			w.step = wizardVersion
+			w.editing = true
+			w.editBuffer = w.cfg.Version
+		}
 	}
 	return w, nil
 }
@@ -349,8 +413,36 @@ func (w *WizardPage) View() string {
 	case wizardWelcome:
 		b.WriteString("  " + keyStyle.Render("Welcome to spinctl!") + "\n\n")
 		b.WriteString("  " + valueStyle.Render("No existing configuration found.") + "\n")
-		b.WriteString("  " + valueStyle.Render("This wizard will help you set up Spinnaker.") + "\n\n")
-		b.WriteString("  " + menuDescStyle.Render("Press enter to begin.") + "\n")
+		b.WriteString("  " + valueStyle.Render("How would you like to get started?") + "\n\n")
+
+		options := []string{"Import from Halyard", "Fresh install"}
+		for i, opt := range options {
+			selected := i == w.cursor
+			cursor := "  "
+			if selected {
+				cursor = menuCursorStyle.Render("▸ ")
+			}
+			label := keyStyle.Render(opt)
+			if selected {
+				label = keySelectedStyle.Render(opt)
+			}
+			b.WriteString(cursor + label + "\n")
+		}
+		b.WriteString("\n  " + menuDescStyle.Render("enter: select") + "\n")
+
+	case wizardImportPath:
+		b.WriteString("  " + stepIndicator(1, 1) + "\n\n")
+		if w.validateErr != "" {
+			b.WriteString("  " + errorStyle.Render(w.validateErr) + "\n\n")
+		}
+		b.WriteString("  " + keyStyle.Render("Halyard config path: ") + editCursorStyle.Render(w.editBuffer+"█") + "\n\n")
+		if w.halDir != "" {
+			b.WriteString("  " + menuDescStyle.Render("Detected: "+w.halDir) + "\n")
+		}
+		b.WriteString("  " + menuDescStyle.Render("enter: import  esc: back") + "\n")
+
+	case wizardImporting:
+		b.WriteString("  " + keyStyle.Render("Importing from "+w.editBuffer+"...") + "\n")
 
 	case wizardVersion:
 		b.WriteString("  " + stepIndicator(1, 5) + "\n\n")
