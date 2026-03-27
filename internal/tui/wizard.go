@@ -104,7 +104,15 @@ func (w *WizardPage) Update(msg tea.Msg) (page, tea.Cmd) {
 	case importDoneMsg:
 		w.validating = false
 		if msg.err != nil {
-			w.validateErr = fmt.Sprintf("Import failed: %s", msg.err)
+			// Extract the most useful part of the error.
+			errStr := msg.err.Error()
+			if strings.Contains(errStr, "no such file or directory") {
+				w.validateErr = fmt.Sprintf("Directory not found: %s", w.editBuffer)
+			} else if strings.Contains(errStr, "permission denied") {
+				w.validateErr = fmt.Sprintf("Permission denied: %s", w.editBuffer)
+			} else {
+				w.validateErr = fmt.Sprintf("Import failed: %s", errStr)
+			}
 			w.step = wizardImportPath
 			w.editing = true
 			return w, nil
@@ -248,11 +256,9 @@ func (w *WizardPage) updateEditing(msg tea.KeyMsg) (page, tea.Cmd) {
 			return versionValidMsg{version: ver, err: err}
 		}
 	case tea.KeyEscape:
-		if w.step == wizardImportPath {
-			w.step = wizardWelcome
-			w.cursor = 0
-		}
 		w.editing = false
+		w.step = wizardWelcome
+		w.cursor = 0
 	case tea.KeyBackspace:
 		if len(w.editBuffer) > 0 {
 			w.editBuffer = w.editBuffer[:len(w.editBuffer)-1]
