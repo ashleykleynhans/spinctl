@@ -134,6 +134,44 @@ func TestCIFieldsWercker(t *testing.T) {
 	}
 }
 
+func TestCIFieldsConcourse(t *testing.T) {
+	fields := CIFields("concourse")
+	assertRequired(t, fields, "url")
+	names := fieldNames(fields)
+	for _, want := range []string{"name", "url", "username", "password"} {
+		if !contains(names, want) {
+			t.Errorf("concourse fields missing %q", want)
+		}
+	}
+}
+
+func TestCIFieldsTravis(t *testing.T) {
+	fields := CIFields("travis")
+	if len(fields) < 2 {
+		t.Errorf("travis fields count = %d, want >= 2", len(fields))
+	}
+	names := fieldNames(fields)
+	for _, want := range []string{"name", "address", "baseUrl", "githubToken"} {
+		if !contains(names, want) {
+			t.Errorf("travis fields missing %q", want)
+		}
+	}
+}
+
+func TestCIFieldsGcb(t *testing.T) {
+	fields := CIFields("gcb")
+	for _, want := range []string{"project", "subscriptionName", "jsonKey"} {
+		assertRequired(t, fields, want)
+	}
+}
+
+func TestCIFieldsCodebuild(t *testing.T) {
+	fields := CIFields("codebuild")
+	for _, want := range []string{"accountId", "region"} {
+		assertRequired(t, fields, want)
+	}
+}
+
 func TestCIFieldsUnknown(t *testing.T) {
 	fields := CIFields("unknown")
 	if len(fields) != 1 {

@@ -172,6 +172,37 @@ func TestDefaultConfigPath(t *testing.T) {
 	}
 }
 
+func TestDefaultPort(t *testing.T) {
+	tests := []struct {
+		name model.ServiceName
+		want int
+	}{
+		{model.Gate, 8084},
+		{model.Clouddriver, 7002},
+		{model.Deck, 9000},
+		{model.Orca, 8083},
+		{model.Front50, 8080},
+		{model.Echo, 8089},
+		{model.Igor, 8088},
+		{model.Fiat, 7003},
+		{model.Rosco, 8087},
+		{model.Kayenta, 8090},
+	}
+	for _, tt := range tests {
+		got := DefaultPort(tt.name)
+		if got != tt.want {
+			t.Errorf("DefaultPort(%v) = %d, want %d", tt.name, got, tt.want)
+		}
+	}
+}
+
+func TestDefaultPortUnknown(t *testing.T) {
+	got := DefaultPort(model.ServiceName(999))
+	if got != 0 {
+		t.Errorf("DefaultPort(unknown) = %d, want 0", got)
+	}
+}
+
 func TestEnsureDir(t *testing.T) {
 	tmpDir := t.TempDir()
 	newDir := filepath.Join(tmpDir, "a", "b", "c")

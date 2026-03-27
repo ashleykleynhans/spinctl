@@ -372,6 +372,188 @@ func TestWizardVersionBackspace(t *testing.T) {
 	}
 }
 
+func TestWizardUpdateProviderFields(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardProviderFields
+	w.selectedProvider = "kubernetes"
+	w.providerForm = NewFieldForm("k8s", ProviderFields("kubernetes"))
+
+	_, cmd := w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	// The form should have received the key (buffer updated).
+	if w.providerForm.buffer != w.providerForm.fields[0].Default+"a" {
+		t.Errorf("providerForm buffer = %q, expected delegation to form", w.providerForm.buffer)
+	}
+	_ = cmd
+}
+
+func TestWizardUpdateStorageFields(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardStorageFields
+	w.selectedStore = "s3"
+	w.storageForm = NewFieldForm("s3", StorageFields("s3"))
+
+	_, cmd := w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	// The form should have received the key.
+	if !strings.Contains(w.storageForm.buffer, "x") {
+		t.Errorf("storageForm buffer = %q, expected delegation to form", w.storageForm.buffer)
+	}
+	_ = cmd
+}
+
+func TestWizardStorageNavigationKUp(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardStorage
+	// Move down then up.
+	w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	if w.storageCursor != 1 {
+		t.Errorf("storageCursor = %d, want 1", w.storageCursor)
+	}
+	w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	if w.storageCursor != 0 {
+		t.Errorf("storageCursor = %d, want 0 after k", w.storageCursor)
+	}
+}
+
+func TestWizardHandleFormDoneProviderWithExtras(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardProviderFields
+	w.selectedProvider = "aws"
+	w.providerForm = NewFieldForm("aws", ProviderFields("aws"))
+
+	w.Update(fieldFormDoneMsg{values: map[string]string{
+		"name":           "my-aws",
+		"accountId":      "123456789",
+		"regions":        "us-west-2, us-east-1",
+		"context":        "my-context",
+		"defaultKeyPair": "my-key",
+	}})
+
+	if w.step != wizardStorage {
+		t.Errorf("step = %v, want wizardStorage", w.step)
+	}
+	prov, ok := w.cfg.Providers["aws"]
+	if !ok {
+		t.Fatal("aws provider config not created")
+	}
+	acct := prov.Accounts[0]
+	if acct.Name != "my-aws" {
+		t.Errorf("account name = %q, want my-aws", acct.Name)
+	}
+	if acct.Context != "my-context" {
+		t.Errorf("account context = %q, want my-context", acct.Context)
+	}
+	// Regions should be stored as a list in Extra.
+	regions, ok := acct.Extra["regions"]
+	if !ok {
+		t.Fatal("regions not in Extra")
+	}
+	regionList, ok := regions.([]any)
+	if !ok {
+		t.Fatalf("regions type = %T, want []any", regions)
+	}
+	if len(regionList) != 2 {
+		t.Errorf("regions count = %d, want 2", len(regionList))
+	}
+	// accountId and defaultKeyPair should be in Extra.
+	if acct.Extra["accountId"] != "123456789" {
+		t.Errorf("accountId = %v, want 123456789", acct.Extra["accountId"])
+	}
+	if acct.Extra["defaultKeyPair"] != "my-key" {
+		t.Errorf("defaultKeyPair = %v, want my-key", acct.Extra["defaultKeyPair"])
+	}
+}
+
+func TestWizardHandleFormDoneStorage(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardStorageFields
+	w.selectedStore = "gcs"
+	w.storageForm = NewFieldForm("gcs", StorageFields("gcs"))
+
+	w.Update(fieldFormDoneMsg{values: map[string]string{
+		"bucket":  "my-gcs-bucket",
+		"project": "my-project",
+		"jsonPath": "/path/to/key.json",
+	}})
+
+	if w.step != wizardDone {
+		t.Errorf("step = %v, want wizardDone", w.step)
+	}
+	if w.cfg.PersistentStorage == nil {
+		t.Fatal("persistent storage not set")
+	}
+	if w.cfg.PersistentStorage["persistentStoreType"] != "gcs" {
+		t.Errorf("store type = %v, want gcs", w.cfg.PersistentStorage["persistentStoreType"])
+	}
+	storeConfig, ok := w.cfg.PersistentStorage["gcs"].(map[string]any)
+	if !ok {
+		t.Fatalf("gcs config type = %T, want map[string]any", w.cfg.PersistentStorage["gcs"])
+	}
+	if storeConfig["bucket"] != "my-gcs-bucket" {
+		t.Errorf("bucket = %v, want my-gcs-bucket", storeConfig["bucket"])
+	}
+}
+
+func TestWizardVersionEditingBackspace(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardVersion
+	w.editing = true
+	w.editBuffer = ""
+	w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}})
+	w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+	if w.editBuffer != "abc" {
+		t.Errorf("editBuffer = %q, want abc", w.editBuffer)
+	}
+	w.Update(tea.KeyMsg{Type: tea.KeyBackspace})
+	if w.editBuffer != "ab" {
+		t.Errorf("editBuffer after backspace = %q, want ab", w.editBuffer)
+	}
+}
+
+func TestWizardVersionEditingEscape(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardVersion
+	w.editing = true
+	w.editBuffer = "1.35.0"
+	w.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	if w.editing {
+		t.Error("editing should be false after escape")
+	}
+}
+
+func TestWizardVersionEditingRunes(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardVersion
+	w.editing = true
+	w.editBuffer = ""
+	w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'2'}})
+	w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'.'}})
+	w.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'0'}})
+	if w.editBuffer != "2.0" {
+		t.Errorf("editBuffer = %q, want 2.0", w.editBuffer)
+	}
+}
+
+func TestWizardViewProviderFields(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardProviderFields
+	w.providerForm = NewFieldForm("Configure kubernetes", ProviderFields("kubernetes"))
+	view := w.View()
+	if !strings.Contains(view, "Configure kubernetes") {
+		t.Error("providerFields view should render the form title")
+	}
+}
+
+func TestWizardViewStorageFields(t *testing.T) {
+	w := newTestWizard()
+	w.step = wizardStorageFields
+	w.storageForm = NewFieldForm("Configure s3 storage", StorageFields("s3"))
+	view := w.View()
+	if !strings.Contains(view, "Configure s3 storage") {
+		t.Error("storageFields view should render the form title")
+	}
+}
+
 func TestWizardVersionEscCancelsEditing(t *testing.T) {
 	w := newTestWizard()
 	w.step = wizardVersion
