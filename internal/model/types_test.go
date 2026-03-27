@@ -1,6 +1,10 @@
 package model
 
-import "testing"
+import (
+	"testing"
+
+	"gopkg.in/yaml.v3"
+)
 
 func TestServiceNameString(t *testing.T) {
 	tests := []struct {
@@ -124,5 +128,112 @@ func TestDeploymentOrder(t *testing.T) {
 	}
 	if gateIdx >= deckIdx {
 		t.Error("gate must be deployed before deck")
+	}
+}
+
+func TestServiceNameStringUnknown(t *testing.T) {
+	unknown := ServiceName(999)
+	got := unknown.String()
+	if got != "ServiceName(999)" {
+		t.Errorf("String() = %q, want %q", got, "ServiceName(999)")
+	}
+}
+
+func TestServiceNameMarshalYAML(t *testing.T) {
+	tests := []struct {
+		name     string
+		svc      ServiceName
+		want     string
+		wantErr  bool
+	}{
+		{"known", Gate, "gate", false},
+		{"clouddriver", Clouddriver, "clouddriver", false},
+		{"unknown", ServiceName(999), "", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tt.svc.MarshalYAML()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("MarshalYAML() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				if got != tt.want {
+					t.Errorf("MarshalYAML() = %v, want %v", got, tt.want)
+				}
+			}
+		})
+	}
+}
+
+func TestServiceNameUnmarshalYAML(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    ServiceName
+		wantErr bool
+	}{
+		{"gate", "gate", Gate, false},
+		{"orca", "orca", Orca, false},
+		{"unknown", "nonexistent", 0, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var svc ServiceName
+			err := yaml.Unmarshal([]byte(tt.input), &svc)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("UnmarshalYAML() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && svc != tt.want {
+				t.Errorf("UnmarshalYAML() = %v, want %v", svc, tt.want)
+			}
+		})
+	}
+}
+
+func TestServiceNameUnmarshalYAMLInvalidType(t *testing.T) {
+	var svc ServiceName
+	// Try to unmarshal an integer, which should fail since it expects a string.
+	err := yaml.Unmarshal([]byte("123"), &svc)
+	// This should either error on ServiceNameFromString or work depending on yaml parsing
+	// The yaml library parses "123" as string "123" so ServiceNameFromString will error.
+	if err == nil {
+		t.Error("expected error unmarshaling '123' as ServiceName")
+	}
+}
+
+func TestServiceNameYAMLRoundTrip(t *testing.T) {
+	type wrapper struct {
+		Service ServiceName `yaml:"service"`
+	}
+	original := wrapper{Service: Front50}
+	data, err := yaml.Marshal(original)
+	if err != nil {
+		t.Fatalf("Marshal error: %v", err)
+	}
+	var decoded wrapper
+	if err := yaml.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("Unmarshal error: %v", err)
+	}
+	if decoded.Service != original.Service {
+		t.Errorf("round-trip: got %v, want %v", decoded.Service, original.Service)
+	}
+}
+
+func TestAllServiceNamesContents(t *testing.T) {
+	names := AllServiceNames()
+	expected := map[ServiceName]bool{
+		Clouddriver: true, Orca: true, Gate: true, Front50: true, Echo: true,
+		Igor: true, Fiat: true, Rosco: true, Kayenta: true, Deck: true,
+	}
+	for _, n := range names {
+		if !expected[n] {
+			t.Errorf("unexpected service name: %v", n)
+		}
+		delete(expected, n)
+	}
+	if len(expected) > 0 {
+		t.Errorf("missing service names: %v", expected)
 	}
 }

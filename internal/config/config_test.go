@@ -102,3 +102,110 @@ func TestNewDefaultConfig(t *testing.T) {
 		t.Errorf("gate default port = %d, want 8084", gate.Port)
 	}
 }
+
+func TestLoadFromBytesInvalidYAML(t *testing.T) {
+	_, err := LoadFromBytes([]byte("{{{{invalid yaml"))
+	if err == nil {
+		t.Error("expected error for invalid YAML")
+	}
+}
+
+func TestLoadFromBytesSchemaVersionZeroDefaultsToOne(t *testing.T) {
+	yamlData := []byte("version: '1.35.0'\nservices: {}\n")
+	cfg, err := LoadFromBytes(yamlData)
+	if err != nil {
+		t.Fatalf("LoadFromBytes() error = %v", err)
+	}
+	if cfg.SchemaVersion != CurrentSchemaVersion {
+		t.Errorf("SchemaVersion = %d, want %d", cfg.SchemaVersion, CurrentSchemaVersion)
+	}
+}
+
+func TestLoadFromBytesPreservesSchemaVersion(t *testing.T) {
+	yamlData := []byte("schema_version: 1\nversion: '1.35.0'\n")
+	cfg, err := LoadFromBytes(yamlData)
+	if err != nil {
+		t.Fatalf("LoadFromBytes() error = %v", err)
+	}
+	if cfg.SchemaVersion != 1 {
+		t.Errorf("SchemaVersion = %d, want 1", cfg.SchemaVersion)
+	}
+}
+
+func TestLoadFromBytesEmptyData(t *testing.T) {
+	cfg, err := LoadFromBytes([]byte(""))
+	if err != nil {
+		t.Fatalf("LoadFromBytes() error = %v", err)
+	}
+	// Empty YAML should produce a zero-value config with schema defaulted to 1.
+	if cfg.SchemaVersion != CurrentSchemaVersion {
+		t.Errorf("SchemaVersion = %d, want %d", cfg.SchemaVersion, CurrentSchemaVersion)
+	}
+}
+
+func TestDefaultConfigDir(t *testing.T) {
+	dir := DefaultConfigDir()
+	if dir == "" {
+		t.Error("DefaultConfigDir() returned empty string")
+	}
+	// Should end with .spinctl.
+	base := filepath.Base(dir)
+	if base != ".spinctl" {
+		t.Errorf("DefaultConfigDir() base = %q, want '.spinctl'", base)
+	}
+}
+
+func TestDefaultConfigPath(t *testing.T) {
+	path := DefaultConfigPath()
+	if path == "" {
+		t.Error("DefaultConfigPath() returned empty string")
+	}
+	base := filepath.Base(path)
+	if base != "config.yaml" {
+		t.Errorf("DefaultConfigPath() base = %q, want 'config.yaml'", base)
+	}
+	// Should be within DefaultConfigDir.
+	dir := filepath.Dir(path)
+	expected := DefaultConfigDir()
+	if dir != expected {
+		t.Errorf("DefaultConfigPath() dir = %q, want %q", dir, expected)
+	}
+}
+
+func TestEnsureDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	newDir := filepath.Join(tmpDir, "a", "b", "c")
+	err := ensureDir(newDir)
+	if err != nil {
+		t.Fatalf("ensureDir() error = %v", err)
+	}
+	info, err := os.Stat(newDir)
+	if err != nil {
+		t.Fatalf("Stat() error = %v", err)
+	}
+	if !info.IsDir() {
+		t.Error("ensureDir() did not create directory")
+	}
+}
+
+func TestEnsureDirAlreadyExists(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Should not error when directory already exists.
+	err := ensureDir(tmpDir)
+	if err != nil {
+		t.Fatalf("ensureDir() error = %v", err)
+	}
+}
+
+func TestSaveToFileCreatesDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+	nested := filepath.Join(tmpDir, "sub", "dir", "config.yaml")
+	cfg := NewDefault()
+	cfg.Version = "1.0.0"
+	if err := SaveToFile(cfg, nested); err != nil {
+		t.Fatalf("SaveToFile() error = %v", err)
+	}
+	if _, err := os.Stat(nested); err != nil {
+		t.Fatalf("file not created: %v", err)
+	}
+}

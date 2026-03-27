@@ -111,7 +111,196 @@ func TestMapNonexistentDeployment(t *testing.T) {
 	}
 }
 
-func TestMapMinimalConfig(t *testing.T) {
+func TestMapSecurityNilFields(t *testing.T) {
+	sec := mapSecurity(&halSecurity{})
+	if sec.Authn.Enabled {
+		t.Error("authn should default to disabled when nil")
+	}
+	if sec.Authz.Enabled {
+		t.Error("authz should default to disabled when nil")
+	}
+}
+
+func TestMapSecurityAuthnOnly(t *testing.T) {
+	sec := mapSecurity(&halSecurity{
+		Authn: &halAuthToggle{Enabled: true},
+	})
+	if !sec.Authn.Enabled {
+		t.Error("authn should be enabled")
+	}
+	if sec.Authz.Enabled {
+		t.Error("authz should be disabled")
+	}
+}
+
+func TestMapSecurityAuthzOnly(t *testing.T) {
+	sec := mapSecurity(&halSecurity{
+		Authz: &halAuthToggle{Enabled: true},
+	})
+	if sec.Authn.Enabled {
+		t.Error("authn should be disabled")
+	}
+	if !sec.Authz.Enabled {
+		t.Error("authz should be enabled")
+	}
+}
+
+func TestMapProvidersEmpty(t *testing.T) {
+	result := mapProviders(map[string]halProvider{})
+	if len(result) != 0 {
+		t.Errorf("expected empty providers map, got %d", len(result))
+	}
+}
+
+func TestMapProvidersWithAccountExtras(t *testing.T) {
+	providers := map[string]halProvider{
+		"kubernetes": {
+			Enabled: true,
+			Accounts: []halAccount{
+				{
+					Name:    "test",
+					Context: "ctx",
+					Extra:   map[string]any{"requiredGroupMembership": []any{"group1"}},
+				},
+			},
+		},
+	}
+	result := mapProviders(providers)
+	k8s := result["kubernetes"]
+	if len(k8s.Accounts) != 1 {
+		t.Fatalf("accounts count = %d, want 1", len(k8s.Accounts))
+	}
+	if k8s.Accounts[0].Extra == nil {
+		t.Error("account extra should not be nil")
+	}
+}
+
+func TestMapProvidersWithNoAccounts(t *testing.T) {
+	providers := map[string]halProvider{
+		"aws": {
+			Enabled:  false,
+			Accounts: nil,
+		},
+	}
+	result := mapProviders(providers)
+	aws := result["aws"]
+	if aws.Enabled {
+		t.Error("aws should be disabled")
+	}
+	if len(aws.Accounts) != 0 {
+		t.Errorf("accounts count = %d, want 0", len(aws.Accounts))
+	}
+}
+
+func TestListDeployments(t *testing.T) {
+	hal := &halConfig{
+		DeploymentConfigurations: []deploymentConfig{
+			{Name: "default"},
+			{Name: "staging"},
+		},
+	}
+	names := listDeployments(hal)
+	if len(names) != 2 {
+		t.Fatalf("expected 2 deployments, got %d", len(names))
+	}
+	if names[0] != "default" || names[1] != "staging" {
+		t.Errorf("deployments = %v, want [default, staging]", names)
+	}
+}
+
+func TestFindDeploymentNotFound(t *testing.T) {
+	hal := &halConfig{
+		DeploymentConfigurations: []deploymentConfig{
+			{Name: "default"},
+		},
+	}
+	_, err := findDeployment(hal, "nonexistent")
+	if err == nil {
+		t.Error("expected error for nonexistent deployment")
+	}
+}
+
+func TestMapHalToSpinctlNoProviders(t *testing.T) {
+	hal := &halConfig{
+		DeploymentConfigurations: []deploymentConfig{
+			{
+				Name:    "default",
+				Version: "1.35.0",
+			},
+		},
+	}
+	cfg, err := mapHalToSpinctl(hal, "default")
+	if err != nil {
+		t.Fatalf("mapHalToSpinctl: %v", err)
+	}
+	if cfg.Providers != nil {
+		t.Error("providers should be nil when none configured")
+	}
+}
+
+func TestMapHalToSpinctlNoSecurity(t *testing.T) {
+	hal := &halConfig{
+		DeploymentConfigurations: []deploymentConfig{
+			{
+				Name:    "default",
+				Version: "1.35.0",
+			},
+		},
+	}
+	cfg, err := mapHalToSpinctl(hal, "default")
+	if err != nil {
+		t.Fatalf("mapHalToSpinctl: %v", err)
+	}
+	if cfg.Security.Authn.Enabled || cfg.Security.Authz.Enabled {
+		t.Error("security should be disabled when not configured")
+	}
+}
+
+func TestMapHalToSpinctlNoFeatures(t *testing.T) {
+	hal := &halConfig{
+		DeploymentConfigurations: []deploymentConfig{
+			{
+				Name:    "default",
+				Version: "1.35.0",
+			},
+		},
+	}
+	cfg, err := mapHalToSpinctl(hal, "default")
+	if err != nil {
+		t.Fatalf("mapHalToSpinctl: %v", err)
+	}
+	// Features should remain the default (empty map from NewDefault).
+	if len(cfg.Features) != 0 {
+		t.Errorf("features should be empty, got %v", cfg.Features)
+	}
+}
+
+func TestMapHalToSpinctlNoExtras(t *testing.T) {
+	hal := &halConfig{
+		DeploymentConfigurations: []deploymentConfig{
+			{
+				Name:    "default",
+				Version: "1.35.0",
+			},
+		},
+	}
+	cfg, err := mapHalToSpinctl(hal, "default")
+	if err != nil {
+		t.Fatalf("mapHalToSpinctl: %v", err)
+	}
+	if cfg.Custom != nil {
+		t.Error("custom should be nil when no extra fields")
+	}
+}
+
+func TestParseHalFileInvalid(t *testing.T) {
+	_, err := parseHalFile("/nonexistent/path/config")
+	if err == nil {
+		t.Error("expected error for nonexistent file")
+	}
+}
+
+func TestMinimalConfig(t *testing.T) {
 	hal, err := parseHalFile(testdataPath("minimal_hal_config.yaml"))
 	if err != nil {
 		t.Fatalf("parseHalFile: %v", err)

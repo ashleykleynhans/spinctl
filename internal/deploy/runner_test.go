@@ -162,3 +162,80 @@ func TestRemoveDeployState(t *testing.T) {
 		t.Error("expected state file to be removed")
 	}
 }
+
+func TestRemoveDeployStateNonexistent(t *testing.T) {
+	// Should not panic on nonexistent file.
+	RemoveDeployState("/nonexistent/state.json")
+}
+
+func TestLoadDeployStateNonexistent(t *testing.T) {
+	_, err := LoadDeployState("/nonexistent/state.json")
+	if err == nil {
+		t.Error("expected error for nonexistent state file")
+	}
+}
+
+func TestLoadDeployStateInvalidJSON(t *testing.T) {
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "state.json")
+	if err := os.WriteFile(stateFile, []byte("not json"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := LoadDeployState(stateFile)
+	if err == nil {
+		t.Error("expected error for invalid JSON")
+	}
+}
+
+func TestRunDeployWithServiceOverride(t *testing.T) {
+	mock := NewMockExecutor()
+	dir := t.TempDir()
+	logFile := filepath.Join(dir, "deploy.log")
+	stateFile := filepath.Join(dir, "state.json")
+
+	cfg := config.NewDefault()
+	cfg.ServiceOverrides = map[model.ServiceName]string{
+		model.Front50: "99.99.99-custom",
+	}
+
+	bom := testBOM()
+	runner := NewDeployRunner(mock, filepath.Join(dir, "config"), logFile, stateFile)
+
+	results, err := runner.Run(context.Background(), cfg, bom, testServices(model.Front50))
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	if results[0].Version != "99.99.99-custom" {
+		t.Errorf("version = %q, want '99.99.99-custom'", results[0].Version)
+	}
+}
+
+func TestRunDeployWritesServiceConfig(t *testing.T) {
+	mock := NewMockExecutor()
+	dir := t.TempDir()
+	logFile := filepath.Join(dir, "deploy.log")
+	stateFile := filepath.Join(dir, "state.json")
+	configDir := filepath.Join(dir, "config")
+
+	cfg := config.NewDefault()
+	cfg.Services[model.Front50] = config.ServiceConfig{
+		Enabled: true,
+		Host:    "localhost",
+		Port:    8080,
+	}
+
+	bom := testBOM()
+	runner := NewDeployRunner(mock, configDir, logFile, stateFile)
+
+	_, err := runner.Run(context.Background(), cfg, bom, testServices(model.Front50))
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	// Verify config file was written.
+	configFile := filepath.Join(configDir, "front50", "front50.yml")
+	if _, err := os.Stat(configFile); os.IsNotExist(err) {
+		t.Error("expected service config file to be written")
+	}
+}

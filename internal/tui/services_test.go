@@ -86,3 +86,66 @@ func TestServicesPageSorted(t *testing.T) {
 		}
 	}
 }
+
+func TestServicesPageWrapDown(t *testing.T) {
+	cfg := config.NewDefault()
+	sp := NewServicesPage(cfg)
+
+	sp.cursor = len(sp.sortedNames) - 1
+	sp.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	if sp.cursor != 0 {
+		t.Errorf("cursor should wrap to 0, got %d", sp.cursor)
+	}
+}
+
+func TestServicesPageWrapUp(t *testing.T) {
+	cfg := config.NewDefault()
+	sp := NewServicesPage(cfg)
+
+	sp.cursor = 0
+	sp.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	expected := len(sp.sortedNames) - 1
+	if sp.cursor != expected {
+		t.Errorf("cursor should wrap to %d, got %d", expected, sp.cursor)
+	}
+}
+
+func TestServicesPageUpDownKeys(t *testing.T) {
+	cfg := config.NewDefault()
+	sp := NewServicesPage(cfg)
+
+	sp.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if sp.cursor != 1 {
+		t.Errorf("cursor after down = %d, want 1", sp.cursor)
+	}
+
+	sp.Update(tea.KeyMsg{Type: tea.KeyUp})
+	if sp.cursor != 0 {
+		t.Errorf("cursor after up = %d, want 0", sp.cursor)
+	}
+}
+
+func TestServicesPageNonKeyMessage(t *testing.T) {
+	cfg := config.NewDefault()
+	sp := NewServicesPage(cfg)
+	type customMsg struct{}
+	result, cmd := sp.Update(customMsg{})
+	if result != sp {
+		t.Error("non-key message should return same page")
+	}
+	if cmd != nil {
+		t.Error("non-key message should return nil cmd")
+	}
+}
+
+func TestServicesPageViewShowsHints(t *testing.T) {
+	cfg := config.NewDefault()
+	sp := NewServicesPage(cfg)
+	view := sp.View()
+	if !strings.Contains(view, "enter: toggle") {
+		t.Error("services page should show toggle hint")
+	}
+	if !strings.Contains(view, "esc: back") {
+		t.Error("services page should show back hint")
+	}
+}

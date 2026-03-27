@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -48,5 +49,71 @@ func TestImportPageDefaultDir(t *testing.T) {
 	ip := NewImportPage("")
 	if ip.halDir != "~/.hal" {
 		t.Errorf("default dir = %q, want ~/.hal", ip.halDir)
+	}
+}
+
+func TestImportPageImportingView(t *testing.T) {
+	ip := NewImportPage("/tmp/hal")
+	ip.confirmed = true
+	ip.importing = true
+	view := ip.View()
+	if !strings.Contains(view, "Importing") {
+		t.Error("should show 'Importing' during import")
+	}
+}
+
+func TestImportPageDoneSuccess(t *testing.T) {
+	ip := NewImportPage("")
+	ip.done = true
+	ip.result = "5 services imported"
+	view := ip.View()
+	if !strings.Contains(view, "complete") {
+		t.Error("done page should show 'complete'")
+	}
+	if !strings.Contains(view, "5 services imported") {
+		t.Error("done page should show result message")
+	}
+}
+
+func TestImportPageDoneError(t *testing.T) {
+	ip := NewImportPage("")
+	ip.done = true
+	ip.err = fmt.Errorf("parse error")
+	view := ip.View()
+	if !strings.Contains(view, "failed") {
+		t.Error("done with error should show 'failed'")
+	}
+	if !strings.Contains(view, "parse error") {
+		t.Error("done with error should show the error message")
+	}
+}
+
+func TestImportPageCancelWithEsc(t *testing.T) {
+	ip := NewImportPage("")
+	ip.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	if !ip.cancelled {
+		t.Error("should be cancelled after esc")
+	}
+}
+
+func TestImportPageIgnoresKeysAfterImporting(t *testing.T) {
+	ip := NewImportPage("")
+	ip.confirmed = true
+	ip.importing = true
+	ip.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	if ip.cancelled {
+		t.Error("should not cancel during importing")
+	}
+}
+
+func TestImportPageNonKeyMessage(t *testing.T) {
+	ip := NewImportPage("")
+	type customMsg struct{}
+	result, cmd := ip.Update(customMsg{})
+	if result != ip {
+		t.Error("non-key message should return same page")
+	}
+	if cmd != nil {
+		t.Error("non-key message should return nil cmd")
 	}
 }

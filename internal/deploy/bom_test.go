@@ -52,6 +52,38 @@ func TestBOMServiceVersionNotFound(t *testing.T) {
 	}
 }
 
+func TestParseBOMBytesInvalidYAML(t *testing.T) {
+	_, err := parseBOMBytes([]byte("{{{{invalid"))
+	if err == nil {
+		t.Error("expected error for invalid YAML")
+	}
+}
+
+func TestParseBOMBytesMissingVersion(t *testing.T) {
+	_, err := parseBOMBytes([]byte("services:\n  orca:\n    version: 1.0.0\n"))
+	if err == nil {
+		t.Error("expected error for missing version field")
+	}
+}
+
+func TestParseBOMFileNonexistent(t *testing.T) {
+	_, err := parseBOMFile("/nonexistent/bom.yaml")
+	if err == nil {
+		t.Error("expected error for nonexistent file")
+	}
+}
+
+func TestResolveVersionsMissingService(t *testing.T) {
+	bom := &BOM{
+		Version:  "1.0.0",
+		Services: map[string]BOMService{},
+	}
+	_, err := ResolveVersions(bom, nil, []model.ServiceName{model.Orca})
+	if err == nil {
+		t.Error("expected error for missing service in BOM")
+	}
+}
+
 func TestResolveVersionsWithOverrides(t *testing.T) {
 	bom, err := parseBOMFile(testdataPath("bom_1.35.0.yaml"))
 	if err != nil {

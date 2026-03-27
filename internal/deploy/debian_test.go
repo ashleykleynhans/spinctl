@@ -113,6 +113,17 @@ func TestBuildDeployPlanOrdering(t *testing.T) {
 	}
 }
 
+func TestDebianDeployerDeployServiceInstallFails(t *testing.T) {
+	mock := NewMockExecutor()
+	mock.SetFail("sudo", errSimulated)
+	d := NewDebianDeployer(mock, t.TempDir())
+
+	err := d.DeployService(context.Background(), model.Orca, "8.47.0")
+	if err == nil {
+		t.Error("expected error when install fails")
+	}
+}
+
 func TestBuildDeployPlanFilterWithWarnings(t *testing.T) {
 	filter := []model.ServiceName{model.Gate}
 	plan := BuildDeployPlan(filter)
