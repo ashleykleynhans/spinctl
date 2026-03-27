@@ -92,8 +92,15 @@ func (e *EditorPage) mapItems() []editorItem {
 				item.value = fmt.Sprintf("[%s] {%d keys}", status, keyCount)
 			} else if active := e.isActiveByTypeSelector(keyNode.Value); active {
 				item.value = fmt.Sprintf("[ ON] {%d keys}", keyCount)
+			} else if e.hasTypeSelector() {
+				// A type selector exists — this entry is not the active one.
+				if keyCount == 0 {
+					item.value = "[OFF]"
+				} else {
+					item.value = fmt.Sprintf("[OFF] {%d keys}", keyCount)
+				}
 			} else if keyCount == 0 {
-				item.value = "[OFF]"
+				item.value = "(empty)"
 			} else {
 				item.value = fmt.Sprintf("{%d keys}", keyCount)
 			}
@@ -189,6 +196,19 @@ func (e *EditorPage) isActiveByTypeSelector(name string) bool {
 		key := e.current.Content[i].Value
 		val := e.current.Content[i+1]
 		if val.Kind == yaml.ScalarNode && strings.HasSuffix(key, "Type") && val.Value == name {
+			return true
+		}
+	}
+	return false
+}
+
+// hasTypeSelector checks if the current mapping node has a key ending in "Type".
+func (e *EditorPage) hasTypeSelector() bool {
+	if e.current == nil || e.current.Kind != yaml.MappingNode {
+		return false
+	}
+	for i := 0; i+1 < len(e.current.Content); i += 2 {
+		if strings.HasSuffix(e.current.Content[i].Value, "Type") {
 			return true
 		}
 	}
