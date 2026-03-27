@@ -18,14 +18,16 @@ type importDoneMsg struct {
 
 // ImportPage is the import wizard for importing Halyard configurations.
 type ImportPage struct {
-	halDir    string
+	halDir     string
 	outputPath string
-	confirmed bool
-	cancelled bool
-	importing bool
-	done      bool
-	result    string
-	err       error
+	editing    bool
+	editBuffer string
+	confirmed  bool
+	cancelled  bool
+	importing  bool
+	done       bool
+	result     string
+	err        error
 }
 
 // NewImportPage creates an import page targeting the given halconfig directory.
@@ -35,11 +37,13 @@ func NewImportPage(halDir string) *ImportPage {
 		if detected != "" {
 			halDir = detected
 		} else {
-			halDir = "~/.hal"
+			halDir = ""
 		}
 	}
 	return &ImportPage{
 		halDir:     halDir,
+		editBuffer: halDir,
+		editing:    halDir == "",
 		outputPath: config.DefaultConfigPath(),
 	}
 }
@@ -65,16 +69,40 @@ func (p *ImportPage) Update(msg tea.Msg) (page, tea.Cmd) {
 		return p, nil
 
 	case tea.KeyMsg:
-		if !p.confirmed && !p.cancelled && !p.importing {
+		if p.editing {
+			return p.updateEditing(msg)
+		}
+		if !p.confirmed && !p.cancelled && !p.importing && !p.done {
 			switch msg.String() {
 			case "y":
 				p.confirmed = true
 				p.importing = true
 				return p, p.runImport()
+			case "e":
+				p.editing = true
+				p.editBuffer = p.halDir
 			case "n", "esc":
 				p.cancelled = true
 			}
 		}
+	}
+	return p, nil
+}
+
+func (p *ImportPage) updateEditing(msg tea.KeyMsg) (page, tea.Cmd) {
+	switch msg.Type {
+	case tea.KeyEnter:
+		p.halDir = p.editBuffer
+		p.editing = false
+	case tea.KeyEscape:
+		p.editBuffer = p.halDir
+		p.editing = false
+	case tea.KeyBackspace:
+		if len(p.editBuffer) > 0 {
+			p.editBuffer = p.editBuffer[:len(p.editBuffer)-1]
+		}
+	case tea.KeyRunes:
+		p.editBuffer += string(msg.Runes)
 	}
 	return p, nil
 }
@@ -96,7 +124,14 @@ func (p *ImportPage) View() string {
 	b.WriteString("\n")
 	b.WriteString(headingStyle.Render("Import from Halyard"))
 	b.WriteString("\n\n")
-	b.WriteString("  " + keyStyle.Render("Source: ") + valueStyle.Render(p.halDir) + "\n")
+
+	if p.editing {
+		b.WriteString("  " + keyStyle.Render("Source: ") + editCursorStyle.Render(p.editBuffer+"█") + "\n\n")
+		b.WriteString("  " + menuDescStyle.Render("enter: confirm path  esc: cancel") + "\n")
+		return b.String()
+	}
+
+	b.WriteString("  " + keyStyle.Render("Source: ") + onStyle.Render(p.halDir) + "\n")
 	b.WriteString("  " + menuDescStyle.Render("A backup will be created before importing.") + "\n\n")
 
 	if p.cancelled {
@@ -110,7 +145,9 @@ func (p *ImportPage) View() string {
 	} else if p.importing {
 		b.WriteString("  " + keyStyle.Render("Importing...") + "\n")
 	} else {
-		b.WriteString("  " + keyStyle.Render("Proceed with import? ") + menuDescStyle.Render("(y/n)") + "\n")
+		b.WriteString("  " + keyStyle.Render("y") + menuDescStyle.Render(": import  ") +
+			keyStyle.Render("e") + menuDescStyle.Render(": edit path  ") +
+			keyStyle.Render("esc") + menuDescStyle.Render(": cancel") + "\n")
 	}
 
 	return b.String()

@@ -19,8 +19,8 @@ func TestImportPageShowsStatus(t *testing.T) {
 	if !strings.Contains(view, "backup") {
 		t.Error("should mention backup")
 	}
-	if !strings.Contains(view, "y/n") {
-		t.Error("should show confirmation prompt")
+	if !strings.Contains(view, "import") {
+		t.Error("should show import option")
 	}
 }
 
