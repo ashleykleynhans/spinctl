@@ -69,6 +69,7 @@ func (e *EditorPage) items() []editorItem {
 
 // mapItems returns key/value pairs from a mapping node.
 func (e *EditorPage) mapItems() []editorItem {
+	var enabledItem *editorItem
 	var items []editorItem
 	for i := 0; i+1 < len(e.current.Content); i += 2 {
 		keyNode := e.current.Content[i]
@@ -107,7 +108,16 @@ func (e *EditorPage) mapItems() []editorItem {
 		case yaml.SequenceNode:
 			item.value = fmt.Sprintf("[%d items]", len(valNode.Content))
 		}
-		items = append(items, item)
+		// Sort "enabled" to the top.
+		if keyNode.Value == "enabled" {
+			copied := item
+			enabledItem = &copied
+		} else {
+			items = append(items, item)
+		}
+	}
+	if enabledItem != nil {
+		items = append([]editorItem{*enabledItem}, items...)
 	}
 	return items
 }
@@ -500,11 +510,11 @@ func (e *EditorPage) View() string {
 		if e.mode == modeEdit && i == e.cursor {
 			b.WriteString(fmt.Sprintf("%s%s: %s█\n", cursor, item.key, e.editBuffer))
 		} else if item.isScalar && isBoolNode(item.node) {
-			status := "OFF"
+			status := "[OFF]"
 			if item.node.Value == "true" {
-				status = " ON"
+				status = "[ ON]"
 			}
-			b.WriteString(fmt.Sprintf("%s[%s] %s\n", cursor, status, item.key))
+			b.WriteString(fmt.Sprintf("%s%-20s %s\n", cursor, item.key, status))
 		} else {
 			b.WriteString(fmt.Sprintf("%s%-20s %s\n", cursor, item.key, item.value))
 		}
