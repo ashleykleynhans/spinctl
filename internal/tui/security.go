@@ -31,12 +31,15 @@ func NewSecurityPage(cfg *config.SpinctlConfig) *SecurityPage {
 	if gateSvc, ok := cfg.Services[model.Gate]; ok && gateSvc.Settings.Kind != 0 {
 		springSettings := extractNestedMap(&gateSvc.Settings, "spring", "security")
 		if springSettings != nil {
-			// Marshal the spring.security node back to map for inclusion.
 			var springMap map[string]any
 			data, _ := yaml.Marshal(springSettings)
 			yaml.Unmarshal(data, &springMap)
 			if springMap != nil {
 				for k, v := range springMap {
+					// Presence of config means it's enabled.
+					if vm, ok := v.(map[string]any); ok {
+						vm["enabled"] = true
+					}
 					combined[k] = v
 				}
 			}
@@ -49,6 +52,7 @@ func NewSecurityPage(cfg *config.SpinctlConfig) *SecurityPage {
 			data, _ := yaml.Marshal(sslSettings)
 			yaml.Unmarshal(data, &sslMap)
 			if sslMap != nil {
+				sslMap["enabled"] = true
 				combined["ssl"] = sslMap
 			}
 		}

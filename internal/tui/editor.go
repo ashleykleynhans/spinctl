@@ -225,6 +225,25 @@ func (e *EditorPage) hasTypeSelector() bool {
 	return false
 }
 
+// toggleMapEnabled toggles the "enabled" boolean inside a mapping node.
+// Returns true if the toggle was performed.
+func toggleMapEnabled(node *yaml.Node) bool {
+	if node.Kind != yaml.MappingNode {
+		return false
+	}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if node.Content[i].Value == "enabled" && node.Content[i+1].Kind == yaml.ScalarNode {
+			if node.Content[i+1].Value == "true" {
+				node.Content[i+1].Value = "false"
+			} else {
+				node.Content[i+1].Value = "true"
+			}
+			return true
+		}
+	}
+	return false
+}
+
 // findMapValue returns the scalar value for a given key in a mapping node.
 func findMapValue(node *yaml.Node, key string) string {
 	if node.Kind != yaml.MappingNode {
@@ -401,7 +420,7 @@ func (e *EditorPage) updateBrowsing(msg tea.KeyMsg) (page, tea.Cmd) {
 			e.cursor = 0
 		}
 	case " ":
-		// Space only toggles booleans.
+		// Space toggles booleans and enabled status on maps.
 		if e.cursor >= 0 && e.cursor < len(items) {
 			item := items[e.cursor]
 			if item.isScalar && isBoolNode(item.node) {
@@ -411,6 +430,11 @@ func (e *EditorPage) updateBrowsing(msg tea.KeyMsg) (page, tea.Cmd) {
 					item.node.Value = "true"
 				}
 				return e, func() tea.Msg { return configChangedMsg{} }
+			} else if item.node != nil && item.node.Kind == yaml.MappingNode {
+				// Toggle the "enabled" key inside the map.
+				if toggled := toggleMapEnabled(item.node); toggled {
+					return e, func() tea.Msg { return configChangedMsg{} }
+				}
 			}
 		}
 	case "enter":
