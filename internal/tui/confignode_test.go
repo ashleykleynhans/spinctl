@@ -79,3 +79,4 @@ func TestToYAMLNodeStruct(t *testing.T) {
 		t.Errorf("node.Content len = %d, want 6", len(node.Content))
 	}
 }
+

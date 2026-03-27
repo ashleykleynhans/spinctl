@@ -271,8 +271,11 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			// Check if home page selected something.
 			if hp, ok := a.homePage.(*HomePage); ok && hp.selected != 0 {
-				a.navigateTo(hp.selected)
+				initCmd := a.navigateTo(hp.selected)
 				hp.selected = 0
+				if initCmd != nil {
+					return a, initCmd
+				}
 			}
 		}
 	} else if a.activePage != nil {
@@ -303,7 +306,7 @@ func (a *App) checkDirty() {
 	a.dirty = a.configSnapshot() != a.savedSnapshot
 }
 
-func (a *App) navigateTo(pageID PageID) {
+func (a *App) navigateTo(pageID PageID) tea.Cmd {
 	// Save current page to stack.
 	a.pageStack = append(a.pageStack, pageEntry{id: a.currentPage, page: a.activePage})
 	a.currentPage = pageID
@@ -345,8 +348,11 @@ func (a *App) navigateTo(pageID PageID) {
 	case PageImport:
 		a.activePage = NewImportPage(a.halDir)
 	case PageDeploy:
-		a.activePage = NewDeployPage(nil)
+		dp := NewDeployPage(a.cfg)
+		a.activePage = dp
+		return dp.Init()
 	}
+	return nil
 }
 
 // newConfigSectionPage creates an editor page for a map[string]any config section.

@@ -797,3 +797,43 @@ func TestSpacebarOnNonBool(t *testing.T) {
 		t.Errorf("value should remain 'hello', got %q", items[0].value)
 	}
 }
+
+func TestToggleMapEnabled(t *testing.T) {
+	node := makeTestNode("enabled: true\nname: test")
+	toggled := toggleMapEnabled(&node)
+	if !toggled {
+		t.Error("should toggle enabled")
+	}
+	if findMapValue(&node, "enabled") != "false" {
+		t.Error("enabled should be false after toggle")
+	}
+	toggleMapEnabled(&node)
+	if findMapValue(&node, "enabled") != "true" {
+		t.Error("enabled should be true after second toggle")
+	}
+}
+
+func TestToggleMapEnabledNoKey(t *testing.T) {
+	node := makeTestNode("name: test")
+	if toggleMapEnabled(&node) {
+		t.Error("should not toggle when no enabled key")
+	}
+}
+
+func TestToggleMapEnabledNonMapping(t *testing.T) {
+	node := makeTestNode("- a\n- b")
+	if toggleMapEnabled(&node) {
+		t.Error("should not toggle on sequence node")
+	}
+}
+
+func TestSpacebarTogglesMapEnabled(t *testing.T) {
+	node := makeTestNode("slack:\n  enabled: true\n  botName: spinbot")
+	ep := NewEditorPage(&node, "notifications")
+
+	// Press space on slack (map with enabled key).
+	_, cmd := ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}})
+	if cmd == nil {
+		t.Error("should return configChangedMsg")
+	}
+}

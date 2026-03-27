@@ -7,6 +7,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spinnaker/spinctl/internal/config"
+	"github.com/spinnaker/spinctl/internal/deploy"
+	"github.com/spinnaker/spinctl/internal/model"
 )
 
 // findMenuCursor returns the cursor index for a given page action in the home page.
@@ -244,9 +246,14 @@ func TestAppDelegatesToDeployPage(t *testing.T) {
 		t.Fatalf("expected PageDeploy, got %v", app.currentPage)
 	}
 
+	// Simulate build completion so deploy page accepts input.
+	dp := app.activePage.(*DeployPage)
+	dp.building = false
+	dp.plan = &deploy.DeployPlan{Steps: []deploy.DeployStep{{Services: []model.ServiceName{model.Gate}}}}
+	dp.versions = map[model.ServiceName]string{model.Gate: "1.0.0"}
+
 	// Send 'y' to confirm deploy.
 	app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
-	dp := app.activePage.(*DeployPage)
 	if !dp.confirmed {
 		t.Error("deploy page should be confirmed after 'y'")
 	}
