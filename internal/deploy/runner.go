@@ -57,6 +57,13 @@ func (r *DeployRunner) Run(ctx context.Context, cfg *config.SpinctlConfig, bom *
 	defer lf.Close()
 	logger := log.New(lf, "", log.LstdFlags)
 
+	// Export all config files before deploying.
+	logger.Printf("Exporting config to %s", r.configDir)
+	if err := ExportConfigs(cfg, r.configDir); err != nil {
+		return nil, fmt.Errorf("exporting configs: %w", err)
+	}
+	logger.Printf("Config export complete")
+
 	plan := BuildDeployPlan(filter)
 	for _, w := range plan.Warnings {
 		logger.Printf("WARNING: %s", w)
