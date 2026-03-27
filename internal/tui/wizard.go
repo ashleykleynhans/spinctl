@@ -18,8 +18,9 @@ const (
 	wizardVersion
 	wizardServices
 	wizardProvider
-	wizardProviderAccount
+	wizardProviderFields
 	wizardStorage
+	wizardStorageFields
 	wizardDone
 )
 
@@ -35,17 +36,16 @@ type WizardPage struct {
 	serviceToggles map[model.ServiceName]bool
 
 	// Provider selection state.
-	providerNames  []string
-	providerCursor int
-
-	// Provider account state.
+	providerNames    []string
+	providerCursor   int
 	selectedProvider string
-	accountName      string
-	accountStep      int // 0=name
+	providerForm     *FieldForm
 
 	// Storage state.
 	storageOptions []string
 	storageCursor  int
+	selectedStore  string
+	storageForm    *FieldForm
 }
 
 // NewWizardPage creates the setup wizard.
@@ -66,6 +66,8 @@ func NewWizardPage(cfg *config.SpinctlConfig) *WizardPage {
 
 func (w *WizardPage) Update(msg tea.Msg) (page, tea.Cmd) {
 	switch msg := msg.(type) {
+	case fieldFormDoneMsg:
+		return w.handleFormDone(msg)
 	case tea.KeyMsg:
 		if w.editing {
 			return w.updateEditing(msg)
@@ -79,13 +81,81 @@ func (w *WizardPage) Update(msg tea.Msg) (page, tea.Cmd) {
 			return w.updateServices(msg)
 		case wizardProvider:
 			return w.updateProvider(msg)
-		case wizardProviderAccount:
-			return w.updateProviderAccount(msg)
+		case wizardProviderFields:
+			return w.updateProviderFields(msg)
 		case wizardStorage:
 			return w.updateStorage(msg)
+		case wizardStorageFields:
+			return w.updateStorageFields(msg)
 		case wizardDone:
 			return w.updateDone(msg)
 		}
+	}
+	return w, nil
+}
+
+func (w *WizardPage) handleFormDone(msg fieldFormDoneMsg) (page, tea.Cmd) {
+	switch w.step {
+	case wizardProviderFields:
+		// Build provider config from form values.
+		account := config.ProviderAccount{
+			Name: msg.values["name"],
+		}
+		extra := make(map[string]any)
+		for k, v := range msg.values {
+			if k == "name" || v == "" {
+				continue
+			}
+			// Handle comma-separated lists.
+			if k == "namespaces" || k == "regions" {
+				parts := strings.Split(v, ",")
+				trimmed := make([]any, 0, len(parts))
+				for _, p := range parts {
+					p = strings.TrimSpace(p)
+					if p != "" {
+						trimmed = append(trimmed, p)
+					}
+				}
+				if len(trimmed) > 0 {
+					extra[k] = trimmed
+				}
+				continue
+			}
+			if k == "context" {
+				account.Context = v
+				continue
+			}
+			extra[k] = v
+		}
+		if len(extra) > 0 {
+			account.Extra = extra
+		}
+
+		if w.cfg.Providers == nil {
+			w.cfg.Providers = make(map[string]config.ProviderConfig)
+		}
+		w.cfg.Providers[w.selectedProvider] = config.ProviderConfig{
+			Enabled:  true,
+			Accounts: []config.ProviderAccount{account},
+		}
+		w.providerForm = nil
+		w.step = wizardStorage
+		w.cursor = 0
+
+	case wizardStorageFields:
+		// Build storage config from form values.
+		storeConfig := make(map[string]any)
+		for k, v := range msg.values {
+			if v != "" {
+				storeConfig[k] = v
+			}
+		}
+		w.cfg.PersistentStorage = map[string]any{
+			"persistentStoreType": w.selectedStore,
+			w.selectedStore:       storeConfig,
+		}
+		w.storageForm = nil
+		w.step = wizardDone
 	}
 	return w, nil
 }
@@ -94,7 +164,8 @@ func (w *WizardPage) updateEditing(msg tea.KeyMsg) (page, tea.Cmd) {
 	switch msg.Type {
 	case tea.KeyEnter:
 		w.editing = false
-		w.applyEdit()
+		w.cfg.Version = w.editBuffer
+		w.step = wizardServices
 	case tea.KeyEscape:
 		w.editing = false
 	case tea.KeyBackspace:
@@ -107,25 +178,8 @@ func (w *WizardPage) updateEditing(msg tea.KeyMsg) (page, tea.Cmd) {
 	return w, nil
 }
 
-func (w *WizardPage) applyEdit() {
-	switch w.step {
-	case wizardVersion:
-		w.cfg.Version = w.editBuffer
-		w.step = wizardServices
-	case wizardProviderAccount:
-		w.accountName = w.editBuffer
-		// Create the provider and account.
-		w.cfg.Providers[w.selectedProvider] = config.ProviderConfig{
-			Enabled:  true,
-			Accounts: []config.ProviderAccount{{Name: w.accountName}},
-		}
-		w.step = wizardStorage
-	}
-}
-
 func (w *WizardPage) updateWelcome(msg tea.KeyMsg) (page, tea.Cmd) {
-	switch msg.String() {
-	case "enter":
+	if msg.String() == "enter" {
 		w.step = wizardVersion
 		w.editing = true
 		w.editBuffer = w.cfg.Version
@@ -134,7 +188,6 @@ func (w *WizardPage) updateWelcome(msg tea.KeyMsg) (page, tea.Cmd) {
 }
 
 func (w *WizardPage) updateVersion(msg tea.KeyMsg) (page, tea.Cmd) {
-	// Handled by editing mode.
 	return w, nil
 }
 
@@ -157,7 +210,6 @@ func (w *WizardPage) updateServices(msg tea.KeyMsg) (page, tea.Cmd) {
 			w.serviceToggles[name] = !w.serviceToggles[name]
 		}
 	case "enter":
-		// Apply selections and move on.
 		for _, name := range names {
 			svc := w.cfg.Services[name]
 			svc.Enabled = w.serviceToggles[name]
@@ -183,21 +235,23 @@ func (w *WizardPage) updateProvider(msg tea.KeyMsg) (page, tea.Cmd) {
 		}
 	case "enter":
 		w.selectedProvider = w.providerNames[w.providerCursor]
-		if w.cfg.Providers == nil {
-			w.cfg.Providers = make(map[string]config.ProviderConfig)
-		}
-		w.step = wizardProviderAccount
-		w.editing = true
-		w.editBuffer = ""
+		fields := ProviderFields(w.selectedProvider)
+		w.providerForm = NewFieldForm(
+			fmt.Sprintf("Configure %s", w.selectedProvider),
+			fields,
+		)
+		w.step = wizardProviderFields
 	case "s":
-		// Skip provider setup.
 		w.step = wizardStorage
 	}
 	return w, nil
 }
 
-func (w *WizardPage) updateProviderAccount(msg tea.KeyMsg) (page, tea.Cmd) {
-	// Handled by editing mode.
+func (w *WizardPage) updateProviderFields(msg tea.KeyMsg) (page, tea.Cmd) {
+	if w.providerForm != nil {
+		_, cmd := w.providerForm.Update(msg)
+		return w, cmd
+	}
 	return w, nil
 }
 
@@ -214,22 +268,29 @@ func (w *WizardPage) updateStorage(msg tea.KeyMsg) (page, tea.Cmd) {
 			w.storageCursor = 0
 		}
 	case "enter":
-		selected := w.storageOptions[w.storageCursor]
-		w.cfg.PersistentStorage = map[string]any{
-			"persistentStoreType": selected,
-			selected:              map[string]any{},
-		}
-		w.step = wizardDone
+		w.selectedStore = w.storageOptions[w.storageCursor]
+		fields := StorageFields(w.selectedStore)
+		w.storageForm = NewFieldForm(
+			fmt.Sprintf("Configure %s storage", w.selectedStore),
+			fields,
+		)
+		w.step = wizardStorageFields
 	case "s":
-		// Skip storage setup.
 		w.step = wizardDone
 	}
 	return w, nil
 }
 
+func (w *WizardPage) updateStorageFields(msg tea.KeyMsg) (page, tea.Cmd) {
+	if w.storageForm != nil {
+		_, cmd := w.storageForm.Update(msg)
+		return w, cmd
+	}
+	return w, nil
+}
+
 func (w *WizardPage) updateDone(msg tea.KeyMsg) (page, tea.Cmd) {
-	switch msg.String() {
-	case "enter":
+	if msg.String() == "enter" {
 		return w, func() tea.Msg { return wizardDoneMsg{} }
 	}
 	return w, nil
@@ -298,14 +359,13 @@ func (w *WizardPage) View() string {
 		}
 		b.WriteString("\n  " + menuDescStyle.Render("enter: select  s: skip") + "\n")
 
-	case wizardProviderAccount:
-		b.WriteString("  " + stepIndicator(4, 5) + "\n\n")
-		b.WriteString("  " + keyStyle.Render("Provider: ") + onStyle.Render(w.selectedProvider) + "\n\n")
-		b.WriteString("  " + keyStyle.Render("Account name: ") + editCursorStyle.Render(w.editBuffer+"█") + "\n\n")
-		b.WriteString("  " + menuDescStyle.Render("enter: confirm") + "\n")
+	case wizardProviderFields:
+		if w.providerForm != nil {
+			return w.providerForm.View()
+		}
 
 	case wizardStorage:
-		b.WriteString("  " + stepIndicator(5, 5) + "\n\n")
+		b.WriteString("  " + stepIndicator(4, 5) + "\n\n")
 		b.WriteString("  " + keyStyle.Render("Select persistent storage backend:") + "\n\n")
 		for i, name := range w.storageOptions {
 			selected := i == w.storageCursor
@@ -321,6 +381,11 @@ func (w *WizardPage) View() string {
 		}
 		b.WriteString("\n  " + menuDescStyle.Render("enter: select  s: skip") + "\n")
 
+	case wizardStorageFields:
+		if w.storageForm != nil {
+			return w.storageForm.View()
+		}
+
 	case wizardDone:
 		b.WriteString("  " + successStyle.Render("Setup complete!") + "\n\n")
 		b.WriteString("  " + keyStyle.Render("Version:  ") + onStyle.Render(w.cfg.Version) + "\n")
@@ -333,13 +398,21 @@ func (w *WizardPage) View() string {
 		}
 		b.WriteString("  " + keyStyle.Render("Services: ") + valueStyle.Render(fmt.Sprintf("%d enabled", enabledCount)) + "\n")
 
-		providerCount := len(w.cfg.Providers)
-		b.WriteString("  " + keyStyle.Render("Providers:") + valueStyle.Render(fmt.Sprintf(" %d configured", providerCount)) + "\n")
+		if len(w.cfg.Providers) > 0 {
+			for name, prov := range w.cfg.Providers {
+				b.WriteString("  " + keyStyle.Render("Provider: ") + onStyle.Render(name) +
+					valueStyle.Render(fmt.Sprintf(" (%d account(s))", len(prov.Accounts))) + "\n")
+			}
+		} else {
+			b.WriteString("  " + keyStyle.Render("Provider: ") + valueStyle.Render("none (skipped)") + "\n")
+		}
 
 		if w.cfg.PersistentStorage != nil {
 			if st, ok := w.cfg.PersistentStorage["persistentStoreType"].(string); ok {
-				b.WriteString("  " + keyStyle.Render("Storage:  ") + valueStyle.Render(st) + "\n")
+				b.WriteString("  " + keyStyle.Render("Storage:  ") + onStyle.Render(st) + "\n")
 			}
+		} else {
+			b.WriteString("  " + keyStyle.Render("Storage:  ") + valueStyle.Render("none (skipped)") + "\n")
 		}
 
 		b.WriteString("\n  " + menuDescStyle.Render("Press enter to save and continue to the main screen.") + "\n")
