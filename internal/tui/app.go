@@ -65,21 +65,22 @@ type configChangedMsg struct{}
 
 // App is the root bubbletea model and page router.
 type App struct {
-	cfg          *config.SpinctlConfig
-	configPath   string
-	version      string
-	currentPage  PageID
-	pageStack    []PageID
-	homePage     page
-	servicesPage page
-	editorPage   page
-	importPage   page
-	deployPage   page
-	dirty        bool
-	width        int
-	height       int
-	statusBar    *components.StatusBar
-	confirmQuit  bool
+	cfg            *config.SpinctlConfig
+	configPath     string
+	version        string
+	savedSnapshot  string // YAML snapshot of last saved state
+	currentPage    PageID
+	pageStack      []PageID
+	homePage       page
+	servicesPage   page
+	editorPage     page
+	importPage     page
+	deployPage     page
+	dirty          bool
+	width          int
+	height         int
+	statusBar      *components.StatusBar
+	confirmQuit    bool
 	saveMessage  string
 }
 
@@ -95,6 +96,7 @@ func NewApp(cfg *config.SpinctlConfig, configPath string, version string) *App {
 		statusBar:   components.NewStatusBar(80),
 	}
 	app.homePage = NewHomePage(cfg)
+	app.savedSnapshot = app.configSnapshot()
 	return app
 }
 
@@ -118,6 +120,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err == nil && msg.result != nil && msg.result.Config != nil {
 			a.cfg = msg.result.Config
 			a.homePage = NewHomePage(a.cfg)
+			a.savedSnapshot = a.configSnapshot()
 			a.dirty = false
 		}
 		// Still delegate to import page so it can show the result.
@@ -127,13 +130,14 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 
 	case configChangedMsg:
-		a.dirty = true
+		a.checkDirty()
 		return a, nil
 
 	case saveResultMsg:
 		if msg.err != nil {
 			a.saveMessage = warnStyle.Render(fmt.Sprintf("Save failed: %s", msg.err))
 		} else {
+			a.savedSnapshot = a.configSnapshot()
 			a.dirty = false
 			a.saveMessage = successStyle.Render("Config saved")
 		}
@@ -240,6 +244,18 @@ func (a *App) saveConfig() tea.Cmd {
 		err := config.SaveToFile(a.cfg, a.configPath)
 		return saveResultMsg{err: err}
 	}
+}
+
+func (a *App) configSnapshot() string {
+	data, err := yaml.Marshal(a.cfg)
+	if err != nil {
+		return ""
+	}
+	return string(data)
+}
+
+func (a *App) checkDirty() {
+	a.dirty = a.configSnapshot() != a.savedSnapshot
 }
 
 func (a *App) navigateTo(pageID PageID) {
