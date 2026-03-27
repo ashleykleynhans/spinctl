@@ -327,11 +327,23 @@ func (e *EditorPage) updateBrowsing(msg tea.KeyMsg) (page, tea.Cmd) {
 		if e.cursor >= len(items) {
 			e.cursor = 0
 		}
+	case " ":
+		// Space only toggles booleans.
+		if e.cursor >= 0 && e.cursor < len(items) {
+			item := items[e.cursor]
+			if item.isScalar && isBoolNode(item.node) {
+				if item.node.Value == "true" {
+					item.node.Value = "false"
+				} else {
+					item.node.Value = "true"
+				}
+				return e, func() tea.Msg { return configChangedMsg{} }
+			}
+		}
 	case "enter":
 		if e.cursor >= 0 && e.cursor < len(items) {
 			item := items[e.cursor]
 			if item.isScalar && isBoolNode(item.node) {
-				// Toggle boolean values directly.
 				if item.node.Value == "true" {
 					item.node.Value = "false"
 				} else {
