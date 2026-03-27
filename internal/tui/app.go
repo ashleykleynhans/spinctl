@@ -86,6 +86,14 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.statusBar.SetModified(a.dirty)
 		return a, nil
 
+	case importDoneMsg:
+		// After import completes, reload config and refresh home page.
+		if msg.err == nil && msg.result != nil && msg.result.Config != nil {
+			a.cfg = msg.result.Config
+			a.homePage = NewHomePage(a.cfg)
+		}
+		// Still delegate to import page so it can show the result.
+
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
