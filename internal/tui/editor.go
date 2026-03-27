@@ -556,15 +556,15 @@ func (e *EditorPage) View() string {
 			if item.node.Value == "true" {
 				status = onStyle.Render("[ ON]")
 			}
-			label := keyStyle.Render(fmt.Sprintf("%-20s", item.key))
+			label := keyStyle.Render(fmt.Sprintf("%-25s", item.key))
 			if selected {
-				label = keySelectedStyle.Render(fmt.Sprintf("%-20s", item.key))
+				label = keySelectedStyle.Render(fmt.Sprintf("%-25s", item.key))
 			}
 			b.WriteString(cursor + label + " " + status + "\n")
 		} else {
-			label := keyStyle.Render(fmt.Sprintf("%-20s", item.key))
+			label := keyStyle.Render(fmt.Sprintf("%-25s", item.key))
 			if selected {
-				label = keySelectedStyle.Render(fmt.Sprintf("%-20s", item.key))
+				label = keySelectedStyle.Render(fmt.Sprintf("%-25s", item.key))
 			}
 			val := valueStyle.Render(item.value)
 			// Color ON/OFF badges in item values.

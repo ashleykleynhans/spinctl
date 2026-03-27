@@ -374,7 +374,11 @@ func (a *App) View() string {
 	w := max(a.width, 40)
 
 	// Title bar.
-	b.WriteString(titleStyle.Render(fmt.Sprintf("spinctl v%s", a.version)))
+	titleText := fmt.Sprintf("spinctl v%s", a.version)
+	b.WriteString(titleStyle.
+		Background(lipgloss.Color("235")).
+		Width(w - 1).
+		Render(titleText))
 	b.WriteString("\n")
 	b.WriteString(dividerStyle.Render(strings.Repeat("─", w)))
 	b.WriteString("\n")
@@ -410,17 +414,20 @@ func (a *App) View() string {
 		b.WriteString(a.saveMessage + "\n")
 	}
 
-	// Status bar — full width.
-	a.statusBar.SetModified(a.dirty)
+	// Status bar — full width with background.
 	hints := "s: save  q: quit  ?: help"
 	if a.currentPage != PageHome {
 		hints = "esc: back  s: save  q: quit"
 	}
-	bar := statusStyle.Width(w).Render(hints)
 	if a.dirty {
-		bar = statusStyle.Width(w).Render(hints + "  [modified]")
+		hints += "  [modified]"
 	}
-	b.WriteString(bar)
+	// Pad to fill terminal width (subtract 2 for padding).
+	barWidth := w - 2
+	if barWidth < 0 {
+		barWidth = 0
+	}
+	b.WriteString(statusStyle.Width(barWidth).Render(hints))
 
 	return b.String()
 }
