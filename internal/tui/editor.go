@@ -30,11 +30,12 @@ const (
 
 // EditorPage provides drill-down navigation through a yaml.Node tree.
 type EditorPage struct {
-	root       *yaml.Node
-	path       []string
-	nodeStack  []*yaml.Node
-	current    *yaml.Node
-	cursor     int
+	root        *yaml.Node
+	path        []string
+	nodeStack   []*yaml.Node
+	cursorStack []int
+	current     *yaml.Node
+	cursor      int
 	mode       editorMode
 	editBuffer string
 	addKeyBuf  string // stashed key name during modeAddValue
@@ -452,6 +453,7 @@ func (e *EditorPage) updateBrowsing(msg tea.KeyMsg) (page, tea.Cmd) {
 				e.editBuffer = item.value
 			} else if item.node != nil && (item.node.Kind == yaml.MappingNode || item.node.Kind == yaml.SequenceNode) {
 				e.nodeStack = append(e.nodeStack, e.current)
+				e.cursorStack = append(e.cursorStack, e.cursor)
 				e.path = append(e.path, item.key)
 				e.current = item.node
 				e.cursor = 0
@@ -479,7 +481,12 @@ func (e *EditorPage) updateBrowsing(msg tea.KeyMsg) (page, tea.Cmd) {
 			if len(e.path) > 0 {
 				e.path = e.path[:len(e.path)-1]
 			}
-			e.cursor = 0
+			if len(e.cursorStack) > 0 {
+				e.cursor = e.cursorStack[len(e.cursorStack)-1]
+				e.cursorStack = e.cursorStack[:len(e.cursorStack)-1]
+			} else {
+				e.cursor = 0
+			}
 		}
 	}
 	return e, nil
