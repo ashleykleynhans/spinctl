@@ -191,20 +191,21 @@ jobs:
           go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" \
             -o spinctl ./cmd/spinctl
 
+      - name: Stage source files for rpm
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          mkdir -p rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+          cp spinctl rpmbuild/SOURCES/
+          cp LICENSE rpmbuild/SOURCES/
+
       - name: Build .rpm package
         run: |
           VERSION=${GITHUB_REF_NAME#v}
+          WORKSPACE=$(pwd)
 
-          mkdir -p rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
-          mkdir -p rpmbuild/BUILDROOT/spinctl-${VERSION}-1.${{ matrix.rpm_arch }}/usr/bin
-          mkdir -p rpmbuild/BUILDROOT/spinctl-${VERSION}-1.${{ matrix.rpm_arch }}/usr/share/doc/spinctl
-
-          cp spinctl rpmbuild/BUILDROOT/spinctl-${VERSION}-1.${{ matrix.rpm_arch }}/usr/bin/
-          cp LICENSE rpmbuild/BUILDROOT/spinctl-${VERSION}-1.${{ matrix.rpm_arch }}/usr/share/doc/spinctl/
-
-          cat > rpmbuild/SPECS/spinctl.spec <<EOF
+          cat > rpmbuild/SPECS/spinctl.spec <<'SPECEOF'
           Name:    spinctl
-          Version: ${VERSION}
+          Version: %{_version}
           Release: 1
           Summary: Spinnaker configuration tool
           License: Apache-2.0
@@ -218,19 +219,19 @@ jobs:
           %install
           mkdir -p %{buildroot}/usr/bin
           mkdir -p %{buildroot}/usr/share/doc/spinctl
-          cp %{_builddir}/../BUILDROOT/spinctl-${VERSION}-1.${{ matrix.rpm_arch }}/usr/bin/spinctl %{buildroot}/usr/bin/
-          cp %{_builddir}/../BUILDROOT/spinctl-${VERSION}-1.${{ matrix.rpm_arch }}/usr/share/doc/spinctl/LICENSE %{buildroot}/usr/share/doc/spinctl/
+          cp %{_sourcedir}/spinctl %{buildroot}/usr/bin/
+          cp %{_sourcedir}/LICENSE %{buildroot}/usr/share/doc/spinctl/
 
           %files
           /usr/bin/spinctl
           /usr/share/doc/spinctl/LICENSE
-          EOF
+          SPECEOF
 
           # Remove leading spaces from spec file
           sed -i 's/^          //' rpmbuild/SPECS/spinctl.spec
 
-          rpmbuild --define "_topdir $(pwd)/rpmbuild" \
-            --define "_arch ${{ matrix.rpm_arch }}" \
+          rpmbuild --define "_topdir ${WORKSPACE}/rpmbuild" \
+            --define "_version ${VERSION}" \
             --target ${{ matrix.rpm_arch }} \
             -bb rpmbuild/SPECS/spinctl.spec
 
