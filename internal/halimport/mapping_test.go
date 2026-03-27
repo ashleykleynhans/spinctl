@@ -297,6 +297,124 @@ func TestParseHalFileInvalid(t *testing.T) {
 	}
 }
 
+func TestMapHalToSpinctlWithAllSections(t *testing.T) {
+	hal := &halConfig{
+		DeploymentConfigurations: []deploymentConfig{
+			{
+				Name:    "default",
+				Version: "1.35.0",
+				Extra: map[string]any{
+					"artifacts":             map[string]any{"github": map[string]any{"enabled": true}},
+					"persistentStorage":     map[string]any{"s3": map[string]any{"bucket": "spin"}},
+					"notifications":         map[string]any{"slack": map[string]any{"enabled": true}},
+					"ci":                    map[string]any{"jenkins": map[string]any{"enabled": true}},
+					"canary":                map[string]any{"enabled": true, "serviceIntegrations": []any{}},
+					"metricStores":          map[string]any{"prometheus": map[string]any{"enabled": false}},
+					"timezone":              "America/Los_Angeles",
+					"deploymentEnvironment": map[string]any{"type": "Distributed"},
+					"spinnaker":             map[string]any{"extensibility": map[string]any{}},
+					"repository":            map[string]any{"artifactory": map[string]any{"enabled": false}},
+					"pubsub":                map[string]any{"google": map[string]any{"enabled": false}},
+					"webhook":               map[string]any{"trust": map[string]any{"enabled": false}},
+					"stats":                 map[string]any{"enabled": true},
+					"customField":           "customValue",
+				},
+			},
+		},
+	}
+
+	cfg, err := mapHalToSpinctl(hal, "default")
+	if err != nil {
+		t.Fatalf("mapHalToSpinctl: %v", err)
+	}
+
+	if cfg.Artifacts == nil {
+		t.Error("Artifacts should not be nil")
+	}
+	if cfg.PersistentStorage == nil {
+		t.Error("PersistentStorage should not be nil")
+	}
+	if cfg.Notifications == nil {
+		t.Error("Notifications should not be nil")
+	}
+	if cfg.CI == nil {
+		t.Error("CI should not be nil")
+	}
+	if cfg.Canary == nil {
+		t.Error("Canary should not be nil")
+	}
+	if cfg.MetricStores == nil {
+		t.Error("MetricStores should not be nil")
+	}
+	if cfg.DeploymentEnvironment == nil {
+		t.Error("DeploymentEnvironment should not be nil")
+	}
+	if cfg.Spinnaker == nil {
+		t.Error("Spinnaker should not be nil")
+	}
+	if cfg.Repository == nil {
+		t.Error("Repository should not be nil")
+	}
+	if cfg.Pubsub == nil {
+		t.Error("Pubsub should not be nil")
+	}
+	if cfg.Webhook == nil {
+		t.Error("Webhook should not be nil")
+	}
+	if cfg.Stats == nil {
+		t.Error("Stats should not be nil")
+	}
+	if cfg.Timezone != "America/Los_Angeles" {
+		t.Errorf("Timezone = %q, want %q", cfg.Timezone, "America/Los_Angeles")
+	}
+	if cfg.Custom == nil || cfg.Custom["customField"] != "customValue" {
+		t.Error("Custom should contain unmapped fields")
+	}
+}
+
+func TestMapHalToSpinctlTimezone(t *testing.T) {
+	hal := &halConfig{
+		DeploymentConfigurations: []deploymentConfig{
+			{
+				Name:    "default",
+				Version: "1.35.0",
+				Extra: map[string]any{
+					"timezone": "Europe/London",
+				},
+			},
+		},
+	}
+
+	cfg, err := mapHalToSpinctl(hal, "default")
+	if err != nil {
+		t.Fatalf("mapHalToSpinctl: %v", err)
+	}
+
+	if cfg.Timezone != "Europe/London" {
+		t.Errorf("Timezone = %q, want %q", cfg.Timezone, "Europe/London")
+	}
+}
+
+func TestToMapStringAnyNonMap(t *testing.T) {
+	// Pass a string -- should return nil.
+	result := toMapStringAny("not a map")
+	if result != nil {
+		t.Errorf("toMapStringAny(string) = %v, want nil", result)
+	}
+
+	// Pass an int -- should return nil.
+	result = toMapStringAny(42)
+	if result != nil {
+		t.Errorf("toMapStringAny(int) = %v, want nil", result)
+	}
+
+	// Pass nil -- should return nil.
+	result = toMapStringAny(nil)
+	if result != nil {
+		t.Errorf("toMapStringAny(nil) = %v, want nil", result)
+	}
+}
+
 func TestMinimalConfig(t *testing.T) {
 	hal, err := parseHalFile(testdataPath("minimal_hal_config.yaml"))
 	if err != nil {

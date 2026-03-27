@@ -658,3 +658,60 @@ func TestEditorEmptyWithAddHint(t *testing.T) {
 		t.Error("empty map should show '+: add' hint")
 	}
 }
+
+func TestFindItemLabelFallback(t *testing.T) {
+	// Create a mapping node with no name/id/title/key/region/label fields,
+	// but with a scalar value that should be used as fallback.
+	node := &yaml.Node{
+		Kind: yaml.MappingNode,
+		Content: []*yaml.Node{
+			{Kind: yaml.ScalarNode, Value: "customField"},
+			{Kind: yaml.ScalarNode, Value: "myValue"},
+		},
+	}
+	label := findItemLabel(node)
+	if label != "myValue" {
+		t.Errorf("findItemLabel fallback = %q, want %q", label, "myValue")
+	}
+}
+
+func TestFindItemLabelNonMapping(t *testing.T) {
+	node := &yaml.Node{Kind: yaml.ScalarNode, Value: "hello"}
+	label := findItemLabel(node)
+	if label != "" {
+		t.Errorf("findItemLabel(scalar) = %q, want empty", label)
+	}
+}
+
+func TestDeleteLastItem(t *testing.T) {
+	node := makeTestNode("a: 1\nb: 2\nc: 3")
+	ep := NewEditorPage(&node, "config")
+
+	// Move cursor to last item (index 2).
+	ep.cursor = 2
+
+	// Delete.
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	ep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+
+	items := ep.items()
+	if len(items) != 2 {
+		t.Fatalf("items count = %d, want 2", len(items))
+	}
+	// Cursor should have adjusted down to the new last item.
+	if ep.cursor != 1 {
+		t.Errorf("cursor = %d, want 1 after deleting last item", ep.cursor)
+	}
+}
+
+func TestDeleteFromEmptyDoesNothing(t *testing.T) {
+	node := makeTestNode("{}")
+	ep := NewEditorPage(&node, "config")
+
+	// Directly call deleteCurrentItem on empty node.
+	ep.deleteCurrentItem()
+	items := ep.items()
+	if len(items) != 0 {
+		t.Errorf("items count = %d, want 0", len(items))
+	}
+}

@@ -332,9 +332,30 @@ func TestAppConfigChangedMsg(t *testing.T) {
 		t.Error("should not be dirty initially")
 	}
 
+	// Actually change the config so checkDirty detects a difference.
+	cfg.Version = "changed"
 	app.Update(configChangedMsg{})
 	if !app.dirty {
-		t.Error("should be dirty after configChangedMsg")
+		t.Error("should be dirty after config was modified")
+	}
+}
+
+func TestAppConfigChangedMsgRevert(t *testing.T) {
+	cfg := config.NewDefault()
+	app := NewApp(cfg, "", "test")
+
+	// Change config.
+	cfg.Version = "changed"
+	app.Update(configChangedMsg{})
+	if !app.dirty {
+		t.Error("should be dirty after change")
+	}
+
+	// Revert config to original state.
+	cfg.Version = ""
+	app.Update(configChangedMsg{})
+	if app.dirty {
+		t.Error("should not be dirty after reverting to original state")
 	}
 }
 
@@ -469,5 +490,105 @@ func TestAppViewAllPages(t *testing.T) {
 				t.Errorf("view for %s should not be empty", tc.name)
 			}
 		})
+	}
+}
+
+func TestAppNavigateToArtifacts(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.Artifacts = map[string]any{"github": map[string]any{"enabled": true}}
+	app := NewApp(cfg, "", "test")
+
+	hp := app.homePage.(*HomePage)
+	hp.cursor = findMenuCursor(hp, PageArtifacts)
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if app.currentPage != PageArtifacts {
+		t.Errorf("currentPage = %v, want PageArtifacts", app.currentPage)
+	}
+	if app.editorPage == nil {
+		t.Error("editor page should be created for Artifacts")
+	}
+}
+
+func TestAppNavigateToNotifications(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.Notifications = map[string]any{"slack": map[string]any{"enabled": true}}
+	app := NewApp(cfg, "", "test")
+
+	hp := app.homePage.(*HomePage)
+	hp.cursor = findMenuCursor(hp, PageNotifications)
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if app.currentPage != PageNotifications {
+		t.Errorf("currentPage = %v, want PageNotifications", app.currentPage)
+	}
+	if app.editorPage == nil {
+		t.Error("editor page should be created for Notifications")
+	}
+}
+
+func TestAppNavigateToCI(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.CI = map[string]any{"jenkins": map[string]any{"enabled": true}}
+	app := NewApp(cfg, "", "test")
+
+	hp := app.homePage.(*HomePage)
+	hp.cursor = findMenuCursor(hp, PageCI)
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if app.currentPage != PageCI {
+		t.Errorf("currentPage = %v, want PageCI", app.currentPage)
+	}
+	if app.editorPage == nil {
+		t.Error("editor page should be created for CI")
+	}
+}
+
+func TestAppNavigateToPersistentStorage(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.PersistentStorage = map[string]any{"s3": map[string]any{"enabled": true}}
+	app := NewApp(cfg, "", "test")
+
+	hp := app.homePage.(*HomePage)
+	hp.cursor = findMenuCursor(hp, PagePersistentStorage)
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if app.currentPage != PagePersistentStorage {
+		t.Errorf("currentPage = %v, want PagePersistentStorage", app.currentPage)
+	}
+	if app.editorPage == nil {
+		t.Error("editor page should be created for PersistentStorage")
+	}
+}
+
+func TestAppNavigateToCanary(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.Canary = map[string]any{"enabled": true}
+	app := NewApp(cfg, "", "test")
+
+	hp := app.homePage.(*HomePage)
+	hp.cursor = findMenuCursor(hp, PageCanary)
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if app.currentPage != PageCanary {
+		t.Errorf("currentPage = %v, want PageCanary", app.currentPage)
+	}
+	if app.editorPage == nil {
+		t.Error("editor page should be created for Canary")
+	}
+}
+
+func TestNewConfigSectionPageWithData(t *testing.T) {
+	data := map[string]any{"github": map[string]any{"enabled": true}}
+	p := newConfigSectionPage(data, "Artifacts")
+	view := p.View()
+	if !strings.Contains(view, "github") {
+		t.Error("section page should show data keys")
+	}
+	if !strings.Contains(view, "Artifacts") {
+		t.Error("section page should show label in breadcrumb")
+	}
+}
+
+func TestNewConfigSectionPageEmpty(t *testing.T) {
+	p := newConfigSectionPage(nil, "Empty")
+	view := p.View()
+	if !strings.Contains(view, "(empty)") {
+		t.Errorf("empty section page view = %q, should contain '(empty)'", view)
 	}
 }
