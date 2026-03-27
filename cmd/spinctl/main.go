@@ -72,23 +72,23 @@ func resolveConfigDir() string {
 	return config.DefaultConfigDir()
 }
 
-func loadOrCreateConfig() (*config.SpinctlConfig, string) {
+func loadOrCreateConfig() (*config.SpinctlConfig, string, bool) {
 	configPath := resolveConfigPath()
 	cfg, err := config.LoadFromFile(configPath)
 	if err != nil {
-		cfg = config.NewDefault()
+		return config.NewDefault(), configPath, true
 	}
-	return cfg, configPath
+	return cfg, configPath, false
 }
 
 func runTUI(cmd *cobra.Command, args []string) error {
-	cfg, configPath := loadOrCreateConfig()
+	cfg, configPath, firstRun := loadOrCreateConfig()
 	lock, err := config.AcquireLock(resolveLockPath())
 	if err != nil {
 		return err
 	}
 	defer config.ReleaseLock(lock)
-	app := tui.NewApp(cfg, configPath, halDir, version)
+	app := tui.NewApp(cfg, configPath, halDir, version, firstRun)
 	p := tea.NewProgram(app, tea.WithAltScreen())
 	_, err = p.Run()
 	return err
@@ -102,7 +102,7 @@ func deployCmd() *cobra.Command {
 		Use:   "deploy",
 		Short: "Deploy Spinnaker services",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, _ := loadOrCreateConfig()
+			cfg, _, _ := loadOrCreateConfig()
 
 			var filter []model.ServiceName
 			if services != "" {

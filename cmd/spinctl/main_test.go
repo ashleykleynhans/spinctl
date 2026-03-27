@@ -442,7 +442,7 @@ func TestLoadOrCreateConfigDefault(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
 
-	cfg, path := loadOrCreateConfig()
+	cfg, path, _ := loadOrCreateConfig()
 	if cfg == nil {
 		t.Fatal("loadOrCreateConfig() returned nil config")
 	}
@@ -566,7 +566,7 @@ func TestLoadOrCreateConfigExisting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	loaded, path := loadOrCreateConfig()
+	loaded, path, _ := loadOrCreateConfig()
 	if loaded.Version != "1.35.0" {
 		t.Errorf("version = %q, want '1.35.0'", loaded.Version)
 	}

@@ -99,6 +99,11 @@ func SaveToFile(cfg *SpinctlConfig, path string) error {
 	return nil
 }
 
+// DefaultPort returns the default port for a Spinnaker service.
+func DefaultPort(name model.ServiceName) int {
+	return defaultPorts[name]
+}
+
 var defaultPorts = map[model.ServiceName]int{
 	model.Clouddriver: 7002,
 	model.Orca:        8083,

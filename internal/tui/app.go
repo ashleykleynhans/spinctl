@@ -37,6 +37,7 @@ const (
 	PageEditor
 	PageImport
 	PageDeploy
+	PageWizard
 )
 
 var (
@@ -150,7 +151,8 @@ type App struct {
 }
 
 // NewApp creates a new App with the home page active.
-func NewApp(cfg *config.SpinctlConfig, configPath string, halDir string, version string) *App {
+// If firstRun is true, the setup wizard is shown instead of the home page.
+func NewApp(cfg *config.SpinctlConfig, configPath string, halDir string, version string, firstRun bool) *App {
 	app := &App{
 		cfg:         cfg,
 		configPath:  configPath,
@@ -162,6 +164,10 @@ func NewApp(cfg *config.SpinctlConfig, configPath string, halDir string, version
 		statusBar:   components.NewStatusBar(80),
 	}
 	app.homePage = NewHomePage(cfg)
+	if firstRun {
+		app.currentPage = PageWizard
+		app.activePage = NewWizardPage(cfg)
+	}
 	app.savedSnapshot = app.configSnapshot()
 	return app
 }
@@ -182,6 +188,15 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if hp, ok := a.homePage.(*HomePage); ok {
 			hp.width = a.width
 		}
+		return a, nil
+
+	case wizardDoneMsg:
+		// Wizard complete — save config, refresh home page, switch to home.
+		a.homePage = NewHomePage(a.cfg)
+		a.currentPage = PageHome
+		a.activePage = nil
+		a.savedSnapshot = a.configSnapshot()
+		a.dirty = true // Mark dirty so user saves
 		return a, nil
 
 	case importDoneMsg:
