@@ -138,7 +138,7 @@ func (p *ImportPage) View() string {
 		b.WriteString("  " + warnStyle.Render("Import cancelled.") + "\n")
 	} else if p.done {
 		if p.err != nil {
-			b.WriteString("  " + warnStyle.Render(fmt.Sprintf("Import failed: %s", p.err)) + "\n")
+			b.WriteString("  " + errorStyle.Render(fmt.Sprintf("Import failed: %s", p.err)) + "\n")
 		} else {
 			b.WriteString("  " + successStyle.Render("Import complete.") + "\n  " + p.result + "\n")
 		}

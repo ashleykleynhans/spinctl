@@ -67,6 +67,10 @@ var (
 			Foreground(lipgloss.Color("214")).
 			Bold(true).
 			PaddingLeft(2)
+	errorStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("196")).
+			Bold(true).
+			PaddingLeft(2)
 
 	// Menu items
 	menuLabelStyle = lipgloss.NewStyle().
@@ -219,7 +223,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case saveResultMsg:
 		if msg.err != nil {
-			a.saveMessage = warnStyle.Render(fmt.Sprintf("Save failed: %s", msg.err))
+			a.saveMessage = errorStyle.Render(fmt.Sprintf("Save failed: %s", msg.err))
 		} else {
 			a.savedSnapshot = a.configSnapshot()
 			a.dirty = false

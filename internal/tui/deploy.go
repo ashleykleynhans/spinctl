@@ -222,7 +222,7 @@ func (d *DeployPage) View() string {
 	}
 
 	if d.buildErr != nil {
-		b.WriteString("  " + warnStyle.Render(fmt.Sprintf("Error: %s", d.buildErr)) + "\n\n")
+		b.WriteString("  " + errorStyle.Render(fmt.Sprintf("Error: %s", d.buildErr)) + "\n\n")
 		b.WriteString("  " + menuDescStyle.Render("esc: back") + "\n")
 		return b.String()
 	}
@@ -283,7 +283,7 @@ func (d *DeployPage) View() string {
 		b.WriteString("  " + warnStyle.Render("Deploy cancelled.") + "\n")
 	} else if d.done {
 		if d.err != nil {
-			b.WriteString("  " + warnStyle.Render(fmt.Sprintf("Deploy failed: %s", d.err)) + "\n")
+			b.WriteString("  " + errorStyle.Render(fmt.Sprintf("Deploy failed: %s", d.err)) + "\n")
 		} else {
 			b.WriteString("  " + successStyle.Render("Deploy complete.") + "\n")
 		}
@@ -291,7 +291,7 @@ func (d *DeployPage) View() string {
 		for _, r := range d.results {
 			status := onStyle.Render("OK")
 			if r.Err != nil {
-				status = warnStyle.Render("FAIL")
+				status = errorStyle.Render("FAIL")
 			}
 			b.WriteString(fmt.Sprintf("  %s %-15s %s\n", status,
 				keyStyle.Render(r.Service.String()),

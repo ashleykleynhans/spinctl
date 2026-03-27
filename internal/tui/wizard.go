@@ -79,7 +79,12 @@ func (w *WizardPage) Update(msg tea.Msg) (page, tea.Cmd) {
 	case versionValidMsg:
 		w.validating = false
 		if msg.err != nil {
-			w.validateErr = fmt.Sprintf("Version %q not found: %s", msg.version, msg.err)
+			errStr := msg.err.Error()
+			if strings.Contains(errStr, "404") {
+				w.validateErr = fmt.Sprintf("Version %q not found. Check the version and try again.", msg.version)
+			} else {
+				w.validateErr = fmt.Sprintf("Error validating version %q: %s", msg.version, errStr)
+			}
 			w.editing = true
 			return w, nil
 		}
@@ -354,7 +359,7 @@ func (w *WizardPage) View() string {
 			b.WriteString("  " + keyStyle.Render("Validating version...") + "\n")
 		} else {
 			if w.validateErr != "" {
-				b.WriteString("  " + warnStyle.Render(w.validateErr) + "\n\n")
+				b.WriteString("  " + errorStyle.Render(w.validateErr) + "\n\n")
 			}
 			b.WriteString("  " + keyStyle.Render("Spinnaker version: ") + editCursorStyle.Render(w.editBuffer+"█") + "\n\n")
 			b.WriteString("  " + menuDescStyle.Render("Example: 2025.3.2") + "\n")
