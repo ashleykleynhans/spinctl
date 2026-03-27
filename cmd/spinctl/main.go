@@ -59,7 +59,7 @@ func runTUI(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	defer config.ReleaseLock(lock)
-	app := tui.NewApp(cfg, configPath)
+	app := tui.NewApp(cfg, configPath, version)
 	p := tea.NewProgram(app, tea.WithAltScreen())
 	_, err = p.Run()
 	return err

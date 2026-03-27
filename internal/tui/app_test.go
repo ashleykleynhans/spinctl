@@ -11,7 +11,7 @@ import (
 func TestAppInit(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Version = "1.35.0"
-	app := NewApp(cfg, "")
+	app := NewApp(cfg, "", "test")
 	if app.currentPage != PageHome {
 		t.Errorf("initial page = %v, want PageHome", app.currentPage)
 	}
@@ -19,7 +19,7 @@ func TestAppInit(t *testing.T) {
 
 func TestAppQuitOnQ(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "")
+	app := NewApp(cfg, "", "test")
 	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
 	if cmd == nil {
 		t.Error("expected quit command")
@@ -29,7 +29,7 @@ func TestAppQuitOnQ(t *testing.T) {
 func TestAppViewContainsTitle(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Version = "1.35.0"
-	app := NewApp(cfg, "")
+	app := NewApp(cfg, "", "test")
 	view := app.View()
 	if !strings.Contains(view, "spinctl") {
 		t.Error("view should contain 'spinctl'")
@@ -38,7 +38,7 @@ func TestAppViewContainsTitle(t *testing.T) {
 
 func TestAppWindowResize(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "")
+	app := NewApp(cfg, "", "test")
 	app.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	if app.width != 120 || app.height != 40 {
 		t.Errorf("size = %dx%d, want 120x40", app.width, app.height)
@@ -47,7 +47,7 @@ func TestAppWindowResize(t *testing.T) {
 
 func TestAppQuitOnCtrlC(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "")
+	app := NewApp(cfg, "", "test")
 	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
 	if cmd == nil {
 		t.Error("expected quit command for ctrl+c")
@@ -56,27 +56,26 @@ func TestAppQuitOnCtrlC(t *testing.T) {
 
 func TestAppViewDevVersion(t *testing.T) {
 	cfg := config.NewDefault()
-	cfg.Version = "" // empty version should show "dev"
-	app := NewApp(cfg, "")
+	app := NewApp(cfg, "", "0.0.3")
 	view := app.View()
-	if !strings.Contains(view, "dev") {
-		t.Error("view should contain 'dev' when version is empty")
+	if !strings.Contains(view, "0.0.3") {
+		t.Error("view should contain spinctl version")
 	}
 }
 
 func TestAppViewWithVersion(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Version = "1.35.0"
-	app := NewApp(cfg, "")
+	app := NewApp(cfg, "", "0.0.3")
 	view := app.View()
-	if !strings.Contains(view, "1.35.0") {
+	if !strings.Contains(view, "0.0.3") {
 		t.Error("view should contain the version")
 	}
 }
 
 func TestAppWindowResizeUpdatesStatusBar(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "")
+	app := NewApp(cfg, "", "test")
 	app.dirty = true
 	app.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
 	view := app.View()
@@ -87,7 +86,7 @@ func TestAppWindowResizeUpdatesStatusBar(t *testing.T) {
 
 func TestAppViewShowsStatusBar(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "")
+	app := NewApp(cfg, "", "test")
 	view := app.View()
 	if !strings.Contains(view, "quit") {
 		t.Error("view should contain status bar with quit hint")
@@ -97,7 +96,7 @@ func TestAppViewShowsStatusBar(t *testing.T) {
 func TestAppNavigateToServices(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Version = "1.35.0"
-	app := NewApp(cfg, "")
+	app := NewApp(cfg, "", "test")
 
 	// Select first item (Services) on home page by pressing enter.
 	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -115,7 +114,7 @@ func TestAppNavigateToServices(t *testing.T) {
 
 func TestAppNavigateToImport(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "")
+	app := NewApp(cfg, "", "test")
 
 	// Navigate to Import from Halyard (index 6, after separator).
 	hp := app.homePage.(*HomePage)
@@ -132,7 +131,7 @@ func TestAppNavigateToImport(t *testing.T) {
 
 func TestAppNavigateToDeploy(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "")
+	app := NewApp(cfg, "", "test")
 
 	// Navigate to Deploy (index 7).
 	hp := app.homePage.(*HomePage)
@@ -149,7 +148,7 @@ func TestAppNavigateToDeploy(t *testing.T) {
 
 func TestAppPageStackTracksHistory(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "")
+	app := NewApp(cfg, "", "test")
 
 	if len(app.pageStack) != 0 {
 		t.Errorf("initial pageStack len = %d, want 0", len(app.pageStack))
@@ -167,7 +166,7 @@ func TestAppPageStackTracksHistory(t *testing.T) {
 
 func TestAppInitReturnsNil(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "")
+	app := NewApp(cfg, "", "test")
 	cmd := app.Init()
 	if cmd != nil {
 		t.Error("Init() should return nil")
@@ -176,7 +175,7 @@ func TestAppInitReturnsNil(t *testing.T) {
 
 func TestAppDelegatesNonKeyMessages(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "")
+	app := NewApp(cfg, "", "test")
 	// Send a non-key, non-window message; should not panic.
 	type customMsg struct{}
 	_, cmd := app.Update(customMsg{})
@@ -188,7 +187,7 @@ func TestAppDelegatesNonKeyMessages(t *testing.T) {
 func TestAppDelegatesToServicesPage(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Version = "1.35.0"
-	app := NewApp(cfg, "")
+	app := NewApp(cfg, "", "test")
 
 	// Navigate to services page.
 	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -206,7 +205,7 @@ func TestAppDelegatesToServicesPage(t *testing.T) {
 
 func TestAppDelegatesToImportPage(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "")
+	app := NewApp(cfg, "", "test")
 
 	// Navigate to import page.
 	hp := app.homePage.(*HomePage)
@@ -226,7 +225,7 @@ func TestAppDelegatesToImportPage(t *testing.T) {
 
 func TestAppDelegatesToDeployPage(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "")
+	app := NewApp(cfg, "", "test")
 
 	// Navigate to deploy page.
 	hp := app.homePage.(*HomePage)
@@ -246,7 +245,7 @@ func TestAppDelegatesToDeployPage(t *testing.T) {
 
 func TestAppNavigateToEditor(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "")
+	app := NewApp(cfg, "", "test")
 
 	// Navigate to Providers (index 1), which goes to editor page.
 	hp := app.homePage.(*HomePage)
@@ -259,7 +258,7 @@ func TestAppNavigateToEditor(t *testing.T) {
 
 func TestAppViewEditorPage(t *testing.T) {
 	cfg := config.NewDefault()
-	app := NewApp(cfg, "")
+	app := NewApp(cfg, "", "test")
 
 	// Navigate to editor page (Providers).
 	hp := app.homePage.(*HomePage)
@@ -288,7 +287,7 @@ func TestAppViewAllPages(t *testing.T) {
 	}
 	for _, tc := range pages {
 		t.Run(tc.name, func(t *testing.T) {
-			app := NewApp(cfg, "")
+			app := NewApp(cfg, "", "test")
 			hp := app.homePage.(*HomePage)
 			hp.cursor = tc.cursor
 			app.Update(tea.KeyMsg{Type: tea.KeyEnter})

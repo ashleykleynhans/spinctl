@@ -38,6 +38,7 @@ type page interface {
 type App struct {
 	cfg         *config.SpinctlConfig
 	configPath  string
+	version     string
 	currentPage PageID
 	pageStack   []PageID
 	homePage    page
@@ -52,10 +53,11 @@ type App struct {
 }
 
 // NewApp creates a new App with the home page active.
-func NewApp(cfg *config.SpinctlConfig, configPath string) *App {
+func NewApp(cfg *config.SpinctlConfig, configPath string, version string) *App {
 	app := &App{
 		cfg:         cfg,
 		configPath:  configPath,
+		version:     version,
 		currentPage: PageHome,
 		width:       80,
 		height:      24,
@@ -162,11 +164,7 @@ func (a *App) View() string {
 	var b strings.Builder
 
 	// Title bar.
-	version := a.cfg.Version
-	if version == "" {
-		version = "dev"
-	}
-	title := titleStyle.Render(fmt.Sprintf("spinctl v%s", version))
+	title := titleStyle.Render(fmt.Sprintf("spinctl v%s", a.version))
 	b.WriteString(title)
 	b.WriteString("\n")
 	b.WriteString(strings.Repeat("─", max(a.width, 40)))
