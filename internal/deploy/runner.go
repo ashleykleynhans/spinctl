@@ -102,13 +102,6 @@ func (r *DeployRunner) Run(ctx context.Context, cfg *config.SpinctlConfig, bom *
 		logger.Printf("deploying %s version %s", svc, version)
 		start := time.Now()
 
-		// Write config for service.
-		if svcCfg, ok := cfg.Services[svc]; ok {
-			if writeErr := r.deployer.WriteServiceConfig(svc, svcCfg); writeErr != nil {
-				logger.Printf("ERROR writing config for %s: %v", svc, writeErr)
-			}
-		}
-
 		// Install and restart.
 		deployErr := r.deployer.DeployService(ctx, svc, version)
 		duration := time.Since(start)

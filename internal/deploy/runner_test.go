@@ -247,9 +247,8 @@ func TestRunDeployWritesServiceConfig(t *testing.T) {
 		t.Fatalf("Run: %v", err)
 	}
 
-	// Verify config file was written.
-	configFile := filepath.Join(configDir, "front50", "front50.yml")
-	if _, err := os.Stat(configFile); os.IsNotExist(err) {
-		t.Error("expected service config file to be written")
+	// Verify deploy log was written.
+	if _, err := os.Stat(logFile); os.IsNotExist(err) {
+		t.Error("expected deploy log to be written")
 	}
 }

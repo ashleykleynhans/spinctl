@@ -3,12 +3,7 @@ package deploy
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 
-	"gopkg.in/yaml.v3"
-
-	"github.com/spinnaker/spinctl/internal/config"
 	"github.com/spinnaker/spinctl/internal/model"
 )
 
@@ -57,23 +52,3 @@ func (d *DebianDeployer) DeployService(ctx context.Context, name model.ServiceNa
 	return nil
 }
 
-// WriteServiceConfig writes the YAML configuration for a service to the
-// config directory.
-func (d *DebianDeployer) WriteServiceConfig(name model.ServiceName, svcCfg config.ServiceConfig) error {
-	dir := filepath.Join(d.configDir, name.String())
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("creating config dir for %s: %w", name, err)
-	}
-
-	data, err := yaml.Marshal(svcCfg)
-	if err != nil {
-		return fmt.Errorf("marshaling config for %s: %w", name, err)
-	}
-
-	path := filepath.Join(dir, name.ConfigFile())
-	if err := os.WriteFile(path, data, 0644); err != nil {
-		return fmt.Errorf("writing config for %s: %w", name, err)
-	}
-
-	return nil
-}

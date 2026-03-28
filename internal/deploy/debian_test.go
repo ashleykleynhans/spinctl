@@ -3,12 +3,9 @@ package deploy
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sync"
 	"testing"
 
-	"github.com/spinnaker/spinctl/internal/config"
 	"github.com/spinnaker/spinctl/internal/model"
 )
 
@@ -89,32 +86,6 @@ func TestDebianDeployerDeployDeckSkipsSystemd(t *testing.T) {
 	}
 }
 
-func TestDebianDeployerWriteServiceConfig(t *testing.T) {
-	dir := t.TempDir()
-	mock := NewMockExecutor()
-	d := NewDebianDeployer(mock, dir)
-
-	cfg := config.ServiceConfig{
-		Enabled: true,
-		Host:    "localhost",
-		Port:    8083,
-	}
-
-	if err := d.WriteServiceConfig(model.Orca, cfg); err != nil {
-		t.Fatalf("WriteServiceConfig: %v", err)
-	}
-
-	path := filepath.Join(dir, "orca", "orca.yml")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("reading config file: %v", err)
-	}
-
-	if len(data) == 0 {
-		t.Error("config file is empty")
-	}
-}
-
 func TestBuildDeployPlanOrdering(t *testing.T) {
 	plan := BuildDeployPlan(nil)
 
@@ -178,41 +149,6 @@ func TestDebianDeployerDeployServiceDaemonReloadFails(t *testing.T) {
 	err := d.DeployService(context.Background(), model.Orca, "8.47.0")
 	if err == nil {
 		t.Error("expected error when daemon-reload fails")
-	}
-}
-
-func TestWriteServiceConfigMkdirAllError(t *testing.T) {
-	tmpDir := t.TempDir()
-	// Create a file that blocks directory creation.
-	blocker := filepath.Join(tmpDir, "blocker")
-	if err := os.WriteFile(blocker, []byte("x"), 0400); err != nil {
-		t.Fatal(err)
-	}
-	mock := NewMockExecutor()
-	d := NewDebianDeployer(mock, blocker) // configDir is a file, not a dir
-	err := d.WriteServiceConfig(model.Orca, config.ServiceConfig{Port: 8083})
-	if err == nil {
-		t.Error("expected error when MkdirAll fails")
-	}
-}
-
-func TestWriteServiceConfigWriteFileError(t *testing.T) {
-	tmpDir := t.TempDir()
-	// Create a read-only service directory so WriteFile fails.
-	svcDir := filepath.Join(tmpDir, "orca")
-	if err := os.MkdirAll(svcDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	// Create a subdirectory where the config file should go (instead of a file).
-	configFile := filepath.Join(svcDir, "orca.yml")
-	if err := os.MkdirAll(configFile, 0755); err != nil {
-		t.Fatal(err)
-	}
-	mock := NewMockExecutor()
-	d := NewDebianDeployer(mock, tmpDir)
-	err := d.WriteServiceConfig(model.Orca, config.ServiceConfig{Port: 8083})
-	if err == nil {
-		t.Error("expected error when WriteFile fails")
 	}
 }
 
