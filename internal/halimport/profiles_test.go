@@ -367,3 +367,103 @@ deploymentConfigurations:
 		t.Error("kayenta should be disabled")
 	}
 }
+
+func TestImportProfilesOverridesFile(t *testing.T) {
+	cfg := config.NewDefault()
+	for _, name := range model.AllServiceNames() {
+		svc := cfg.Services[name]
+		svc.Enabled = true
+		cfg.Services[name] = svc
+	}
+
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "orca-overrides.yml"), []byte("tasks:\n  timeout: 300"), 0644)
+
+	importProfiles(cfg, dir)
+
+	orca := cfg.Services[model.Orca]
+	if orca.Settings.Kind == 0 {
+		t.Error("orca Settings should contain overrides data")
+	}
+}
+
+func TestImportProfilesBaseYml(t *testing.T) {
+	cfg := config.NewDefault()
+	for _, name := range model.AllServiceNames() {
+		svc := cfg.Services[name]
+		svc.Enabled = true
+		cfg.Services[name] = svc
+	}
+
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "orca.yml"), []byte("server:\n  port: 8083"), 0644)
+
+	importProfiles(cfg, dir)
+
+	orca := cfg.Services[model.Orca]
+	if orca.Settings.Kind == 0 {
+		t.Error("orca Settings should contain profile data from orca.yml")
+	}
+}
+
+func TestImportProfilesSettingsLocalJS(t *testing.T) {
+	cfg := config.NewDefault()
+
+	dir := t.TempDir()
+	jsContent := "window.spinnakerSettings.feature.canary = true;"
+	os.WriteFile(filepath.Join(dir, "settings-local.js"), []byte(jsContent), 0644)
+
+	importProfiles(cfg, dir)
+
+	if cfg.ProfileFiles == nil {
+		t.Fatal("ProfileFiles should not be nil")
+	}
+	if cfg.ProfileFiles["settings-local.js"] != jsContent {
+		t.Errorf("ProfileFiles[settings-local.js] = %q, want %q", cfg.ProfileFiles["settings-local.js"], jsContent)
+	}
+}
+
+func TestImportProfilesNonYAMLFile(t *testing.T) {
+	cfg := config.NewDefault()
+
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "custom-script.sh"), []byte("#!/bin/bash\necho hello"), 0644)
+
+	importProfiles(cfg, dir)
+
+	if cfg.ProfileFiles == nil {
+		t.Fatal("ProfileFiles should not be nil")
+	}
+	if _, ok := cfg.ProfileFiles["custom-script.sh"]; !ok {
+		t.Error("should store non-YAML files in ProfileFiles")
+	}
+}
+
+func TestExtractServiceName(t *testing.T) {
+	tests := []struct {
+		filename string
+		want     string
+		ok       bool
+	}{
+		{"gate.yml", "gate", true},
+		{"gate-local.yml", "gate", true},
+		{"orca-overrides.yml", "orca", true},
+		{"orca-override.yml", "orca", true},
+		{"clouddriver-custom.yml", "clouddriver", true},
+		{"unknown-local.yml", "", false},
+		{"settings-local.js", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.filename, func(t *testing.T) {
+			svc, ok := extractServiceName(tt.filename)
+			if ok != tt.ok {
+				t.Errorf("extractServiceName(%q) ok = %v, want %v", tt.filename, ok, tt.ok)
+				return
+			}
+			if ok && svc.String() != tt.want {
+				t.Errorf("extractServiceName(%q) = %q, want %q", tt.filename, svc, tt.want)
+			}
+		})
+	}
+}

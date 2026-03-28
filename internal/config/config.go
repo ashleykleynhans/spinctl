@@ -39,6 +39,10 @@ type SpinctlConfig struct {
 	Spinnaker             map[string]any `yaml:"spinnaker,omitempty"`
 
 	Custom map[string]any `yaml:"custom,omitempty"`
+
+	// ProfileFiles stores raw non-YAML profile files (e.g. settings-local.js)
+	// keyed by filename.
+	ProfileFiles map[string]string `yaml:"profile_files,omitempty"`
 }
 
 type ProviderConfig struct {

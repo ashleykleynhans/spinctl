@@ -67,9 +67,40 @@ func importServiceSettings(cfg *config.SpinctlConfig, dir string) {
 	}
 }
 
-// importProfiles reads .hal/<deployment>/profiles/<service>-local.yml files
-// and merges them into the service's Settings. These are Spring Boot config
-// overrides that get placed in /opt/spinnaker/config/<service>-local.yml.
+// knownSuffixes are the suffixes that get stripped to find the service name.
+var knownSuffixes = []string{"-local", "-overrides", "-override", "-custom"}
+
+// extractServiceName tries to extract a service name from a profile filename.
+// It strips known suffixes like -local, -overrides, etc.
+func extractServiceName(filename string) (model.ServiceName, bool) {
+	name := strings.TrimSuffix(filename, ".yml")
+	name = strings.TrimSuffix(name, ".yaml")
+
+	// Try the name as-is first.
+	if svc, err := model.ServiceNameFromString(name); err == nil {
+		return svc, true
+	}
+
+	// Try stripping known suffixes.
+	for _, suffix := range knownSuffixes {
+		if strings.HasSuffix(name, suffix) {
+			base := strings.TrimSuffix(name, suffix)
+			if svc, err := model.ServiceNameFromString(base); err == nil {
+				return svc, true
+			}
+		}
+	}
+
+	return 0, false
+}
+
+// importProfiles reads .hal/<deployment>/profiles/ files and merges them
+// into the service's Settings. Handles:
+//   - <service>.yml — base profile
+//   - <service>-local.yml — local overrides
+//   - <service>-overrides.yml — additional overrides
+//   - settings-local.js — raw files stored as-is for deck
+//   - Any other non-YAML files stored in ProfileFiles
 func importProfiles(cfg *config.SpinctlConfig, dir string) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -77,33 +108,48 @@ func importProfiles(cfg *config.SpinctlConfig, dir string) {
 	}
 
 	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yml") {
+		if entry.IsDir() {
 			continue
 		}
 
-		// Profiles can be named <service>-local.yml or <service>.yml
-		name := strings.TrimSuffix(entry.Name(), ".yml")
-		name = strings.TrimSuffix(name, "-local")
+		filename := entry.Name()
+		filePath := filepath.Join(dir, filename)
 
-		svcName, err := model.ServiceNameFromString(name)
+		// Handle YAML files.
+		if strings.HasSuffix(filename, ".yml") || strings.HasSuffix(filename, ".yaml") {
+			svcName, ok := extractServiceName(filename)
+			if !ok {
+				continue // Unknown service, skip.
+			}
+
+			data, err := os.ReadFile(filePath)
+			if err != nil {
+				continue
+			}
+
+			var profileSettings map[string]any
+			if err := yaml.Unmarshal(data, &profileSettings); err != nil {
+				continue
+			}
+
+			if len(profileSettings) > 0 {
+				svc := cfg.Services[svcName]
+				mergeIntoSettings(&svc, profileSettings)
+				cfg.Services[svcName] = svc
+			}
+			continue
+		}
+
+		// Handle non-YAML files (settings-local.js, etc.) — store as raw content.
+		data, err := os.ReadFile(filePath)
 		if err != nil {
-			continue // Unknown service, skip.
-		}
-
-		data, err := os.ReadFile(filepath.Join(dir, entry.Name()))
-		if err != nil {
 			continue
 		}
-
-		var profileSettings map[string]any
-		if err := yaml.Unmarshal(data, &profileSettings); err != nil {
-			continue
-		}
-
-		if len(profileSettings) > 0 {
-			svc := cfg.Services[svcName]
-			mergeIntoSettings(&svc, profileSettings)
-			cfg.Services[svcName] = svc
+		if len(data) > 0 {
+			if cfg.ProfileFiles == nil {
+				cfg.ProfileFiles = make(map[string]string)
+			}
+			cfg.ProfileFiles[filename] = string(data)
 		}
 	}
 }

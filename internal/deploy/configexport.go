@@ -35,6 +35,14 @@ func ExportConfigs(cfg *config.SpinctlConfig, configDir string) error {
 		}
 	}
 
+	// Write raw profile files (settings-local.js, etc.).
+	for filename, content := range cfg.ProfileFiles {
+		path := filepath.Join(configDir, filename)
+		if err := os.WriteFile(path, []byte(content), 0640); err != nil {
+			return fmt.Errorf("writing %s: %w", filename, err)
+		}
+	}
+
 	return nil
 }
 
