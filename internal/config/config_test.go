@@ -148,10 +148,9 @@ func TestDefaultConfigDir(t *testing.T) {
 	if dir == "" {
 		t.Error("DefaultConfigDir() returned empty string")
 	}
-	// Should end with .spinctl.
-	base := filepath.Base(dir)
-	if base != ".spinctl" {
-		t.Errorf("DefaultConfigDir() base = %q, want '.spinctl'", base)
+	// On Linux it's /opt/spinctl or ~/.spinctl (fallback), on other OS it's ~/.spinctl.
+	if dir != "/opt/spinctl" && filepath.Base(dir) != ".spinctl" {
+		t.Errorf("DefaultConfigDir() = %q, want /opt/spinctl or */.spinctl", dir)
 	}
 }
 
@@ -266,8 +265,9 @@ func TestDefaultConfigDirWithHome(t *testing.T) {
 	if !filepath.IsAbs(dir) {
 		t.Errorf("DefaultConfigDir() = %q, expected absolute path", dir)
 	}
-	if filepath.Base(dir) != ".spinctl" {
-		t.Errorf("DefaultConfigDir() base = %q, want '.spinctl'", filepath.Base(dir))
+	// Should be either /opt/spinctl or ~/.spinctl.
+	if dir != "/opt/spinctl" && filepath.Base(dir) != ".spinctl" {
+		t.Errorf("DefaultConfigDir() = %q, want /opt/spinctl or */.spinctl", dir)
 	}
 }
 

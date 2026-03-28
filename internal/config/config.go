@@ -135,11 +135,15 @@ func NewDefault() *SpinctlConfig {
 }
 
 // DefaultConfigDir returns the default directory for spinctl configuration.
-// On Linux: /opt/spinctl (alongside /opt/spinnaker)
+// On Linux: /opt/spinctl (alongside /opt/spinnaker), falls back to ~/.spinctl if creation fails
 // On macOS and other platforms: ~/.spinctl
 func DefaultConfigDir() string {
 	if runtime.GOOS == "linux" {
-		return "/opt/spinctl"
+		dir := "/opt/spinctl"
+		if err := os.MkdirAll(dir, 0755); err == nil {
+			return dir
+		}
+		// Fall back to home dir if /opt/spinctl can't be created.
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
