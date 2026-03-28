@@ -173,6 +173,23 @@ func TestDeployPageDoneError(t *testing.T) {
 	}
 }
 
+func TestDeployPageDonePermissionDenied(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.Version = "1.35.0"
+	dp := NewDeployPage(cfg)
+	dp.building = false
+	dp.confirmed = true
+	dp.plan = &deploy.DeployPlan{Steps: []deploy.DeployStep{{Services: []model.ServiceName{model.Gate}}}}
+	dp.versions = map[model.ServiceName]string{model.Gate: "6.62.0"}
+
+	dp.Update(deployDoneMsg{err: fmt.Errorf("permission denied")})
+
+	view := dp.View()
+	if !strings.Contains(view, "sudo") {
+		t.Error("should tell user to run with sudo")
+	}
+}
+
 func TestDeployPageIgnoresKeysDuringBuild(t *testing.T) {
 	cfg := config.NewDefault()
 	dp := NewDeployPage(cfg)
