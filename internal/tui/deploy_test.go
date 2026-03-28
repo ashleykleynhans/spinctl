@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -124,11 +125,11 @@ func TestDeployPageConfirm(t *testing.T) {
 	if !dp.confirmed {
 		t.Error("should be confirmed after 'y'")
 	}
-	if !dp.deploying {
-		t.Error("should be deploying")
+	if !dp.exporting {
+		t.Error("should be exporting configs")
 	}
 	if cmd == nil {
-		t.Error("should return deploy command")
+		t.Error("should return export command")
 	}
 }
 
@@ -212,35 +213,108 @@ func TestDeployPageIgnoresKeysDuringDeploy(t *testing.T) {
 	}
 }
 
-func TestDeployPageStepMsg(t *testing.T) {
+func TestDeployPageServiceDoneMsg(t *testing.T) {
 	cfg := config.NewDefault()
 	dp := NewDeployPage(cfg)
 	dp.building = false
+	dp.deploying = true
+	dp.serviceOrder = []model.ServiceName{model.Gate}
+	dp.serviceIdx = 0
 
-	dp.Update(deployStepMsg{
-		service: model.Gate,
-		result:  deploy.DeployResult{Service: model.Gate, Version: "6.62.0"},
-		stepIdx: 0,
+	dp.Update(deployServiceDoneMsg{
+		service:  model.Gate,
+		version:  "6.62.0",
+		duration: 2 * time.Second,
 	})
 
 	if dp.statuses[model.Gate] != Done {
 		t.Errorf("gate status = %v, want Done", dp.statuses[model.Gate])
 	}
+	if dp.durations[model.Gate] != 2*time.Second {
+		t.Errorf("gate duration = %v, want 2s", dp.durations[model.Gate])
+	}
 }
 
-func TestDeployPageStepMsgFailed(t *testing.T) {
+func TestDeployPageServiceDoneMsgFailed(t *testing.T) {
 	cfg := config.NewDefault()
 	dp := NewDeployPage(cfg)
 	dp.building = false
+	dp.deploying = true
+	dp.serviceOrder = []model.ServiceName{model.Gate}
+	dp.serviceIdx = 0
 
-	dp.Update(deployStepMsg{
-		service: model.Gate,
-		result:  deploy.DeployResult{Service: model.Gate, Err: fmt.Errorf("fail")},
-		stepIdx: 0,
+	dp.Update(deployServiceDoneMsg{
+		service:  model.Gate,
+		version:  "6.62.0",
+		err:      fmt.Errorf("install failed"),
+		duration: 1 * time.Second,
 	})
 
 	if dp.statuses[model.Gate] != Failed {
 		t.Errorf("gate status = %v, want Failed", dp.statuses[model.Gate])
+	}
+	if !dp.done {
+		t.Error("should be done after failure")
+	}
+}
+
+func TestDeployPageExportMsg(t *testing.T) {
+	cfg := config.NewDefault()
+	dp := NewDeployPage(cfg)
+	dp.building = false
+	dp.exporting = true
+	dp.serviceOrder = []model.ServiceName{model.Gate}
+	dp.versions = map[model.ServiceName]string{model.Gate: "6.62.0"}
+
+	_, cmd := dp.Update(deployExportMsg{})
+	if dp.exporting {
+		t.Error("should not be exporting after export msg")
+	}
+	if cmd == nil {
+		t.Error("should return deploy next command")
+	}
+}
+
+func TestDeployPageExportMsgError(t *testing.T) {
+	cfg := config.NewDefault()
+	dp := NewDeployPage(cfg)
+	dp.building = false
+	dp.exporting = true
+
+	dp.Update(deployExportMsg{err: fmt.Errorf("permission denied")})
+	if !dp.done {
+		t.Error("should be done after export error")
+	}
+}
+
+func TestDeployPageServiceStartMsg(t *testing.T) {
+	cfg := config.NewDefault()
+	dp := NewDeployPage(cfg)
+	dp.building = false
+
+	dp.Update(deployServiceStartMsg{service: model.Gate, phase: "installing"})
+	if dp.statuses[model.Gate] != Installing {
+		t.Errorf("status = %v, want Installing", dp.statuses[model.Gate])
+	}
+
+	dp.Update(deployServiceStartMsg{service: model.Gate, phase: "restarting"})
+	if dp.statuses[model.Gate] != Restarting {
+		t.Errorf("status = %v, want Restarting", dp.statuses[model.Gate])
+	}
+}
+
+func TestProgressBar(t *testing.T) {
+	bar := progressBar(5, 10, 20)
+	if !strings.Contains(bar, "5/10") {
+		t.Errorf("progress bar = %q, should contain 5/10", bar)
+	}
+	if !strings.Contains(bar, "█") {
+		t.Error("progress bar should contain filled blocks")
+	}
+
+	empty := progressBar(0, 0, 20)
+	if empty != "" {
+		t.Error("progress bar with 0 total should be empty")
 	}
 }
 
@@ -285,8 +359,9 @@ func TestDeployStatusStrings(t *testing.T) {
 		icon   string
 	}{
 		{Pending, "pending", "○"},
-		{Installing, "installing", "◐"},
-		{Restarting, "restarting", "◑"},
+		{Exporting, "exporting", "◐"},
+		{Installing, "installing", "◑"},
+		{Restarting, "restarting", "◒"},
 		{Done, "done", "●"},
 		{Failed, "failed", "✗"},
 		{DeployStatus(99), "unknown", "?"},
@@ -325,13 +400,14 @@ func TestDeployPageServiceStatusIcons(t *testing.T) {
 	dp.plan = &deploy.DeployPlan{Steps: []deploy.DeployStep{
 		{Services: []model.ServiceName{model.Gate, model.Orca}},
 	}}
+	dp.serviceOrder = []model.ServiceName{model.Gate, model.Orca}
 	dp.versions = map[model.ServiceName]string{model.Gate: "6.62.0", model.Orca: "8.47.0"}
 	dp.statuses[model.Gate] = Done
 	dp.statuses[model.Orca] = Failed
 
 	view := dp.View()
-	if !strings.Contains(view, "✓") {
-		t.Error("should show done checkmark for gate")
+	if !strings.Contains(view, "●") {
+		t.Error("should show done icon for gate")
 	}
 	if !strings.Contains(view, "✗") {
 		t.Error("should show failed X for orca")
@@ -344,6 +420,7 @@ func TestDeployPageInstallingStatus(t *testing.T) {
 	dp := NewDeployPage(cfg)
 	dp.building = false
 	dp.plan = &deploy.DeployPlan{Steps: []deploy.DeployStep{{Services: []model.ServiceName{model.Gate}}}}
+	dp.serviceOrder = []model.ServiceName{model.Gate}
 	dp.versions = map[model.ServiceName]string{model.Gate: "6.62.0"}
 	dp.statuses[model.Gate] = Installing
 
@@ -359,6 +436,7 @@ func TestDeployPageUnknownVersion(t *testing.T) {
 	dp := NewDeployPage(cfg)
 	dp.building = false
 	dp.plan = &deploy.DeployPlan{Steps: []deploy.DeployStep{{Services: []model.ServiceName{model.Gate}}}}
+	dp.serviceOrder = []model.ServiceName{model.Gate}
 	dp.versions = map[model.ServiceName]string{}
 
 	view := dp.View()
@@ -367,29 +445,32 @@ func TestDeployPageUnknownVersion(t *testing.T) {
 	}
 }
 
-func TestDeployPageDoneWithResultsTiming(t *testing.T) {
+func TestDeployPageDoneWithResults(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.Version = "1.35.0"
 	dp := NewDeployPage(cfg)
 	dp.building = false
 	dp.confirmed = true
 	dp.plan = &deploy.DeployPlan{Steps: []deploy.DeployStep{{Services: []model.ServiceName{model.Gate, model.Orca}}}}
+	dp.serviceOrder = []model.ServiceName{model.Gate, model.Orca}
 	dp.versions = map[model.ServiceName]string{model.Gate: "6.62.0", model.Orca: "8.47.0"}
-
-	dp.Update(deployDoneMsg{
-		results: []deploy.DeployResult{
-			{Service: model.Gate, Version: "6.62.0"},
-			{Service: model.Orca, Version: "8.47.0", Err: fmt.Errorf("restart failed")},
-		},
-		err: fmt.Errorf("deploy failed"),
-	})
+	dp.statuses[model.Gate] = Done
+	dp.durations[model.Gate] = 2 * time.Second
+	dp.statuses[model.Orca] = Failed
+	dp.errors[model.Orca] = fmt.Errorf("restart failed")
+	dp.durations[model.Orca] = 1 * time.Second
+	dp.done = true
+	dp.err = fmt.Errorf("deploy failed")
 
 	view := dp.View()
-	if !strings.Contains(view, "OK") {
-		t.Error("should show OK for successful service")
+	if !strings.Contains(view, "●") {
+		t.Error("should show done icon for successful service")
 	}
-	if !strings.Contains(view, "FAIL") {
-		t.Error("should show FAIL for failed service")
+	if !strings.Contains(view, "✗") {
+		t.Error("should show failed icon for failed service")
+	}
+	if !strings.Contains(view, "restart failed") {
+		t.Error("should show error for failed service")
 	}
 }
 
