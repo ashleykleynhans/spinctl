@@ -558,18 +558,26 @@ func TestExportConfigsWithProfileFiles(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	// /opt/deck/html is not writable in tests, so this should fall back to configDir.
 	if err := ExportConfigs(cfg, dir); err != nil {
 		t.Fatalf("ExportConfigs with profile files: %v", err)
 	}
 
-	// Check fallback path: the file should be in configDir.
-	data, err := os.ReadFile(filepath.Join(dir, "custom-config.js"))
-	if err != nil {
-		t.Fatalf("expected custom-config.js to be written to config dir: %v", err)
+	// File goes to /opt/deck/html if writable, otherwise falls back to configDir.
+	found := false
+	for _, path := range []string{
+		filepath.Join("/opt/deck/html", "custom-config.js"),
+		filepath.Join(dir, "custom-config.js"),
+	} {
+		if data, err := os.ReadFile(path); err == nil {
+			if string(data) != "var custom = true;" {
+				t.Errorf("unexpected content in %s: %s", path, string(data))
+			}
+			found = true
+			break
+		}
 	}
-	if string(data) != "var custom = true;" {
-		t.Errorf("unexpected content: %s", string(data))
+	if !found {
+		t.Error("custom-config.js not found in /opt/deck/html or config dir")
 	}
 }
 
