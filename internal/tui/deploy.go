@@ -283,7 +283,12 @@ func (d *DeployPage) View() string {
 		b.WriteString("  " + warnStyle.Render("Deploy cancelled.") + "\n")
 	} else if d.done {
 		if d.err != nil {
-			b.WriteString("  " + errorStyle.Render(fmt.Sprintf("Deploy failed: %s", d.err)) + "\n")
+			errStr := d.err.Error()
+			if strings.Contains(errStr, "permission denied") {
+				b.WriteString("  " + errorStyle.Render("Deploy failed: permission denied. Run spinctl with sudo.") + "\n")
+			} else {
+				b.WriteString("  " + errorStyle.Render(fmt.Sprintf("Deploy failed: %s", errStr)) + "\n")
+			}
 		} else {
 			b.WriteString("  " + successStyle.Render("Deploy complete.") + "\n")
 		}
