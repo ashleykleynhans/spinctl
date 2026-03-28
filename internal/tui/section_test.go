@@ -11,7 +11,7 @@ import (
 func TestSectionPageView(t *testing.T) {
 	node := makeTestNode("name: test\nport: 8080")
 	editor := NewEditorPage(&node, "TestSection")
-	sp := newSectionPage(editor)
+	sp := newSectionPage(editor, nil)
 
 	view := sp.View()
 	if !strings.Contains(view, "name") {
@@ -26,7 +26,7 @@ func TestSectionPageView(t *testing.T) {
 }
 
 func TestSectionPageViewNilEditor(t *testing.T) {
-	sp := newSectionPage(nil)
+	sp := newSectionPage(nil, nil)
 	view := sp.View()
 	if !strings.Contains(view, "(empty)") {
 		t.Errorf("nil editor view = %q, want '(empty)'", view)
@@ -36,7 +36,7 @@ func TestSectionPageViewNilEditor(t *testing.T) {
 func TestSectionPageEscAtRootSendsGoBack(t *testing.T) {
 	node := makeTestNode("a: 1")
 	editor := NewEditorPage(&node, "Test")
-	sp := newSectionPage(editor)
+	sp := newSectionPage(editor, nil)
 
 	// nodeStack is empty, so esc should send goBackMsg.
 	_, cmd := sp.Update(tea.KeyMsg{Type: tea.KeyEscape})
@@ -52,7 +52,7 @@ func TestSectionPageEscAtRootSendsGoBack(t *testing.T) {
 func TestSectionPageEscDrillsUp(t *testing.T) {
 	node := makeTestNode("server:\n  host: localhost\n  port: 8080")
 	editor := NewEditorPage(&node, "Test")
-	sp := newSectionPage(editor)
+	sp := newSectionPage(editor, nil)
 
 	// Drill into 'server'.
 	sp.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -79,7 +79,7 @@ func TestSectionPageEscDrillsUp(t *testing.T) {
 func TestSectionPageUpdate(t *testing.T) {
 	node := makeTestNode("a: 1\nb: 2\nc: 3")
 	editor := NewEditorPage(&node, "Test")
-	sp := newSectionPage(editor)
+	sp := newSectionPage(editor, nil)
 
 	// Forward a down key to the editor.
 	sp.Update(tea.KeyMsg{Type: tea.KeyDown})
@@ -89,7 +89,7 @@ func TestSectionPageUpdate(t *testing.T) {
 }
 
 func TestSectionPageUpdateNilEditor(t *testing.T) {
-	sp := newSectionPage(nil)
+	sp := newSectionPage(nil, nil)
 	result, cmd := sp.Update(tea.KeyMsg{Type: tea.KeyDown})
 	if result != sp {
 		t.Error("nil editor update should return same page")
@@ -102,7 +102,7 @@ func TestSectionPageUpdateNilEditor(t *testing.T) {
 func TestSectionPageUpdateNonKeyMsg(t *testing.T) {
 	node := makeTestNode("a: 1")
 	editor := NewEditorPage(&node, "Test")
-	sp := newSectionPage(editor)
+	sp := newSectionPage(editor, nil)
 
 	type customMsg struct{}
 	result, cmd := sp.Update(customMsg{})
@@ -117,7 +117,7 @@ func TestSectionPageUpdateNonKeyMsg(t *testing.T) {
 func TestNewSectionPageHelper(t *testing.T) {
 	node := &yaml.Node{Kind: yaml.MappingNode}
 	editor := NewEditorPage(node, "Test")
-	sp := newSectionPage(editor)
+	sp := newSectionPage(editor, nil)
 	if sp.editor != editor {
 		t.Error("newSectionPage should set the editor field")
 	}

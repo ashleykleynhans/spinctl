@@ -47,8 +47,8 @@ func (f *BOMFetcher) Fetch(version string) (*BOM, error) {
 	}
 
 	// Cache the fetched BOM.
-	if err := os.MkdirAll(f.cacheDir, 0755); err == nil {
-		_ = os.WriteFile(cachedPath, data, 0644)
+	if err := os.MkdirAll(f.cacheDir, 0700); err == nil {
+		_ = os.WriteFile(cachedPath, data, 0600)
 	}
 
 	return bom, nil

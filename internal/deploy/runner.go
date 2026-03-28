@@ -50,7 +50,7 @@ func NewDeployRunner(exec Executor, configDir, logFile, stateFile string) *Deplo
 // state on failure, and cleans up state on success.
 func (r *DeployRunner) Run(ctx context.Context, cfg *config.SpinctlConfig, bom *BOM, filter []model.ServiceName) ([]DeployResult, error) {
 	// Open log file.
-	lf, err := os.OpenFile(r.logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	lf, err := os.OpenFile(r.logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		return nil, fmt.Errorf("opening log file: %w", err)
 	}
@@ -142,7 +142,7 @@ func (r *DeployRunner) saveState(completed, remaining []string) {
 	if err != nil {
 		return
 	}
-	_ = os.WriteFile(r.stateFile, data, 0644)
+	_ = os.WriteFile(r.stateFile, data, 0600)
 }
 
 // LoadDeployState reads a deploy state file from disk.

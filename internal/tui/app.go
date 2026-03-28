@@ -349,27 +349,27 @@ func (a *App) navigateTo(pageID PageID) tea.Cmd {
 	case PageVersion:
 		a.activePage = NewVersionPage(a.cfg)
 	case PageArtifacts:
-		a.activePage = newConfigSectionPage(a.cfg.Artifacts, "Artifacts")
+		a.activePage = newConfigSectionPage(a.cfg.Artifacts, "Artifacts", func(n *yaml.Node) { a.cfg.Artifacts = nodeToMap(n) })
 	case PagePersistentStorage:
-		a.activePage = newConfigSectionPage(a.cfg.PersistentStorage, "Persistent Storage")
+		a.activePage = newConfigSectionPage(a.cfg.PersistentStorage, "Persistent Storage", func(n *yaml.Node) { a.cfg.PersistentStorage = nodeToMap(n) })
 	case PageNotifications:
-		a.activePage = newConfigSectionPage(a.cfg.Notifications, "Notifications")
+		a.activePage = newConfigSectionPage(a.cfg.Notifications, "Notifications", func(n *yaml.Node) { a.cfg.Notifications = nodeToMap(n) })
 	case PageCI:
-		a.activePage = newConfigSectionPage(a.cfg.CI, "CI")
+		a.activePage = newConfigSectionPage(a.cfg.CI, "CI", func(n *yaml.Node) { a.cfg.CI = nodeToMap(n) })
 	case PageRepository:
-		a.activePage = newConfigSectionPage(a.cfg.Repository, "Repository")
+		a.activePage = newConfigSectionPage(a.cfg.Repository, "Repository", func(n *yaml.Node) { a.cfg.Repository = nodeToMap(n) })
 	case PagePubsub:
-		a.activePage = newConfigSectionPage(a.cfg.Pubsub, "Pub/Sub")
+		a.activePage = newConfigSectionPage(a.cfg.Pubsub, "Pub/Sub", func(n *yaml.Node) { a.cfg.Pubsub = nodeToMap(n) })
 	case PageCanary:
-		a.activePage = newConfigSectionPage(a.cfg.Canary, "Canary")
+		a.activePage = newConfigSectionPage(a.cfg.Canary, "Canary", func(n *yaml.Node) { a.cfg.Canary = nodeToMap(n) })
 	case PageWebhook:
-		a.activePage = newConfigSectionPage(a.cfg.Webhook, "Webhook")
+		a.activePage = newConfigSectionPage(a.cfg.Webhook, "Webhook", func(n *yaml.Node) { a.cfg.Webhook = nodeToMap(n) })
 	case PageMetricStores:
-		a.activePage = newConfigSectionPage(a.cfg.MetricStores, "Metric Stores")
+		a.activePage = newConfigSectionPage(a.cfg.MetricStores, "Metric Stores", func(n *yaml.Node) { a.cfg.MetricStores = nodeToMap(n) })
 	case PageDeploymentEnv:
-		a.activePage = newConfigSectionPage(a.cfg.DeploymentEnvironment, "Deployment Environment")
+		a.activePage = newConfigSectionPage(a.cfg.DeploymentEnvironment, "Deployment Environment", func(n *yaml.Node) { a.cfg.DeploymentEnvironment = nodeToMap(n) })
 	case PageSpinnaker:
-		a.activePage = newConfigSectionPage(a.cfg.Spinnaker, "Spinnaker")
+		a.activePage = newConfigSectionPage(a.cfg.Spinnaker, "Spinnaker", func(n *yaml.Node) { a.cfg.Spinnaker = nodeToMap(n) })
 	case PageImport:
 		a.activePage = NewImportPage(a.halDir)
 	case PageDeploy:
@@ -381,7 +381,8 @@ func (a *App) navigateTo(pageID PageID) tea.Cmd {
 }
 
 // newConfigSectionPage creates an editor page for a map[string]any config section.
-func newConfigSectionPage(data map[string]any, label string) page {
+// The onSave callback is called when the user navigates back, to persist edits.
+func newConfigSectionPage(data map[string]any, label string, onSave func(*yaml.Node)) page {
 	var node *yaml.Node
 	if len(data) == 0 {
 		node = &yaml.Node{Kind: yaml.MappingNode}
@@ -392,7 +393,21 @@ func newConfigSectionPage(data map[string]any, label string) page {
 			node = &yaml.Node{Kind: yaml.MappingNode}
 		}
 	}
-	return newSectionPage(NewEditorPage(node, label))
+	return newSectionPage(NewEditorPage(node, label), onSave)
+}
+
+// nodeToMap converts a yaml.Node back to map[string]any.
+func nodeToMap(node *yaml.Node) map[string]any {
+	if node == nil {
+		return nil
+	}
+	data, err := yaml.Marshal(node)
+	if err != nil {
+		return nil
+	}
+	var result map[string]any
+	yaml.Unmarshal(data, &result)
+	return result
 }
 
 func (a *App) goBack() {

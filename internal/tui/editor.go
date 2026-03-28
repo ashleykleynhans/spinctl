@@ -10,10 +10,11 @@ import (
 
 // editorItem represents one visible item in the editor.
 type editorItem struct {
-	key      string
-	value    string
-	node     *yaml.Node
-	isScalar bool
+	key        string
+	value      string
+	node       *yaml.Node
+	isScalar   bool
+	contentIdx int // index in parent's Content array (for maps: key index, for sequences: item index)
 }
 
 // editorMode tracks what input mode the editor is in.
@@ -76,8 +77,9 @@ func (e *EditorPage) mapItems() []editorItem {
 		keyNode := e.current.Content[i]
 		valNode := e.current.Content[i+1]
 		item := editorItem{
-			key:  keyNode.Value,
-			node: valNode,
+			key:        keyNode.Value,
+			node:       valNode,
+			contentIdx: i,
 		}
 		switch valNode.Kind {
 		case yaml.ScalarNode:
@@ -129,8 +131,9 @@ func (e *EditorPage) sequenceItems() []editorItem {
 	var items []editorItem
 	for i, node := range e.current.Content {
 		item := editorItem{
-			key:  fmt.Sprintf("[%d]", i),
-			node: node,
+			key:        fmt.Sprintf("[%d]", i),
+			node:       node,
+			contentIdx: i,
 		}
 		switch node.Kind {
 		case yaml.ScalarNode:
@@ -390,15 +393,21 @@ func (e *EditorPage) deleteCurrentItem() {
 		return
 	}
 
+	item := items[e.cursor]
+
 	switch e.current.Kind {
 	case yaml.MappingNode:
-		// Remove key + value (2 nodes per entry).
-		idx := e.cursor * 2
+		// Use contentIdx to find the correct position in the Content array,
+		// since visual order may differ from Content order (enabled sorted to top).
+		idx := item.contentIdx
 		if idx+1 < len(e.current.Content) {
 			e.current.Content = append(e.current.Content[:idx], e.current.Content[idx+2:]...)
 		}
 	case yaml.SequenceNode:
-		e.current.Content = append(e.current.Content[:e.cursor], e.current.Content[e.cursor+1:]...)
+		idx := item.contentIdx
+		if idx < len(e.current.Content) {
+			e.current.Content = append(e.current.Content[:idx], e.current.Content[idx+1:]...)
+		}
 	}
 
 	// Adjust cursor.

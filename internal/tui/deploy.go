@@ -110,6 +110,7 @@ type DeployPage struct {
 	building  bool
 	exporting bool
 	deploying bool
+	cancelFn  context.CancelFunc
 	done      bool
 	err       error
 	buildErr  error
@@ -223,6 +224,17 @@ func (d *DeployPage) Update(msg tea.Msg) (page, tea.Cmd) {
 		return d, nil
 
 	case tea.KeyMsg:
+		// Allow cancellation during deploy.
+		if (d.deploying || d.exporting) && msg.String() == "esc" {
+			if d.cancelFn != nil {
+				d.cancelFn()
+			}
+			d.deploying = false
+			d.exporting = false
+			d.done = true
+			d.err = fmt.Errorf("deploy cancelled by user")
+			return d, nil
+		}
 		if d.building || d.deploying || d.exporting {
 			return d, nil
 		}
@@ -265,28 +277,17 @@ func (d *DeployPage) deployNext() tea.Cmd {
 	d.current = svc
 	d.deploying = true
 
+	ctx, cancel := context.WithCancel(context.Background())
+	d.cancelFn = cancel
+
 	return func() tea.Msg {
 		start := time.Now()
 
 		exec := &deploy.RealExecutor{}
-		pkg := fmt.Sprintf("%s=%s", svc.PackageName(), ver)
+		deployer := deploy.NewDebianDeployer(exec, "/opt/spinnaker/config")
+		err := deployer.DeployService(ctx, svc, ver)
 
-		// Install.
-		if err := exec.Run(context.Background(), "sudo", "apt-get", "install", "-y", "-qq", pkg); err != nil {
-			return deployServiceDoneMsg{service: svc, version: ver, err: err, duration: time.Since(start)}
-		}
-
-		// Restart (skip for deck).
-		if svc != model.Deck {
-			if err := exec.Run(context.Background(), "sudo", "systemctl", "daemon-reload"); err != nil {
-				return deployServiceDoneMsg{service: svc, version: ver, err: err, duration: time.Since(start)}
-			}
-			if err := exec.Run(context.Background(), "sudo", "systemctl", "restart", svc.SystemdUnit()); err != nil {
-				return deployServiceDoneMsg{service: svc, version: ver, err: err, duration: time.Since(start)}
-			}
-		}
-
-		return deployServiceDoneMsg{service: svc, version: ver, duration: time.Since(start)}
+		return deployServiceDoneMsg{service: svc, version: ver, err: err, duration: time.Since(start)}
 	}
 }
 

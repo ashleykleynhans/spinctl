@@ -583,7 +583,7 @@ func TestAppNavigateToCanary(t *testing.T) {
 
 func TestNewConfigSectionPageWithData(t *testing.T) {
 	data := map[string]any{"github": map[string]any{"enabled": true}}
-	p := newConfigSectionPage(data, "Artifacts")
+	p := newConfigSectionPage(data, "Artifacts", nil)
 	view := p.View()
 	if !strings.Contains(view, "github") {
 		t.Error("section page should show data keys")
@@ -594,7 +594,7 @@ func TestNewConfigSectionPageWithData(t *testing.T) {
 }
 
 func TestNewConfigSectionPageEmpty(t *testing.T) {
-	p := newConfigSectionPage(nil, "Empty")
+	p := newConfigSectionPage(nil, "Empty", nil)
 	view := p.View()
 	if !strings.Contains(view, "(empty)") {
 		t.Errorf("empty section page view = %q, should contain '(empty)'", view)
