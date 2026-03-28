@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"gopkg.in/yaml.v3"
 
@@ -133,7 +134,13 @@ func NewDefault() *SpinctlConfig {
 	}
 }
 
+// DefaultConfigDir returns the default directory for spinctl configuration.
+// On Linux: /opt/spinctl (alongside /opt/spinnaker)
+// On macOS and other platforms: ~/.spinctl
 func DefaultConfigDir() string {
+	if runtime.GOOS == "linux" {
+		return "/opt/spinctl"
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return ".spinctl"
