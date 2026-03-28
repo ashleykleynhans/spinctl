@@ -140,10 +140,16 @@ func NewDefault() *SpinctlConfig {
 func DefaultConfigDir() string {
 	if runtime.GOOS == "linux" {
 		dir := "/opt/spinctl"
-		if err := os.MkdirAll(dir, 0755); err == nil {
+		// Use /opt/spinctl if it already exists or /opt/spinnaker exists
+		// (indicating this is a Spinnaker server).
+		if info, err := os.Stat(dir); err == nil && info.IsDir() {
 			return dir
 		}
-		// Fall back to home dir if /opt/spinctl can't be created.
+		if info, err := os.Stat("/opt/spinnaker"); err == nil && info.IsDir() {
+			_ = os.MkdirAll(dir, 0755)
+			return dir
+		}
+		// Fall back to home dir on Linux machines without Spinnaker.
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
