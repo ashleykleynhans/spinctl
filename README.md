@@ -1,8 +1,19 @@
 # spinctl
 
+> **IMPORTANT: This project is a proof of concept and is NOT production ready. It has not been fully tested against all Spinnaker configurations and deployment scenarios. Use at your own risk. Always back up your existing Halyard configuration and Spinnaker config files before using spinctl.**
+
 A terminal UI configuration tool for [Spinnaker](https://spinnaker.io/), replacing [Halyard](https://github.com/spinnaker/halyard).
 
 spinctl provides an interactive TUI that works over SSH for managing Spinnaker configuration and deploying services via Debian packages. It imports existing Halyard configurations and migrates them to a cleaner format.
+
+## Disclaimer
+
+This software is provided "as is", without warranty of any kind, express or implied. The authors are not responsible for any damage, data loss, or service disruption caused by the use of this tool. This is an early-stage project and may contain bugs that could affect your Spinnaker deployment. It is strongly recommended to:
+
+- Test in a non-production environment first
+- Back up all configuration files before making changes
+- Review generated config files before deploying
+- Keep your existing Halyard installation available as a fallback
 
 ## Features
 
